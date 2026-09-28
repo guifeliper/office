@@ -1,18 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { OfficeRuntime } from './office-runtime';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-const ALLOWED_CHANNELS = new Set([
-  'office:get-shell-info',
-  'office:get-projection',
-  'office:subscribe-projection',
-  'office:get-setup-preview',
-  'office:install-hooks',
-  'office:get-health',
-  'office:uninstall',
-]);
+const runtime = new OfficeRuntime();
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -31,6 +24,8 @@ function createWindow(): BrowserWindow {
     },
   });
 
+  runtime.attachWindow(win);
+
   win.once('ready-to-show', () => {
     win.show();
   });
@@ -46,7 +41,7 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-function registerShellIpc(): void {
+function registerIpc(): void {
   ipcMain.handle('office:get-shell-info', () => ({
     productName: 'Cursor Office',
     viewerOnly: true,
@@ -54,39 +49,16 @@ function registerShellIpc(): void {
     version: app.getVersion(),
   }));
 
-  // Placeholder handlers reserved for later units — return safe defaults.
-  ipcMain.handle('office:get-projection', () => ({
-    consultants: [],
-    collaborators: [],
-    connected: false,
-    waitingForActivity: true,
-  }));
-
-  ipcMain.handle('office:get-setup-preview', () => ({
-    installed: false,
-    hooks: [],
-    retainedFields: [],
-    commandPath: '',
-  }));
-
-  ipcMain.handle('office:install-hooks', () => ({
-    ok: false,
-    error: 'Not implemented yet',
-  }));
-
-  ipcMain.handle('office:get-health', () => ({
-    status: 'disconnected' as const,
-    detail: 'Observer not configured',
-  }));
-
-  ipcMain.handle('office:uninstall', () => ({
-    ok: false,
-    error: 'Not implemented yet',
-  }));
+  ipcMain.handle('office:get-projection', () => runtime.getProjectionPayload());
+  ipcMain.handle('office:get-setup-preview', () => runtime.getSetupPreview());
+  ipcMain.handle('office:install-hooks', () => runtime.installObserver());
+  ipcMain.handle('office:get-health', () => runtime.getHealth());
+  ipcMain.handle('office:uninstall', () => runtime.uninstallIntegration());
 }
 
-app.whenReady().then(() => {
-  registerShellIpc();
+app.whenReady().then(async () => {
+  registerIpc();
+  await runtime.start();
   createWindow();
 
   app.on('activate', () => {
@@ -102,12 +74,13 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Harden: reject unapproved channels at the main-process boundary.
+app.on('before-quit', () => {
+  void runtime.stop();
+});
+
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (event) => {
     event.preventDefault();
   });
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 });
-
-export { ALLOWED_CHANNELS };

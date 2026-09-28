@@ -5,19 +5,26 @@ import path from 'node:path';
 export const TOKEN_FILENAME = 'ingest.token';
 export const PORT_FILENAME = 'ingest.port';
 
+export function writeTokenFile(userDataDir: string, token: string): string {
+  fs.mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
+  const filePath = path.join(userDataDir, TOKEN_FILENAME);
+  fs.writeFileSync(filePath, token, { encoding: 'utf8', mode: 0o600 });
+  fs.chmodSync(filePath, 0o600);
+  return filePath;
+}
+
 export function ensureInstallToken(userDataDir: string): string {
   fs.mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
-  const tokenPath = path.join(userDataDir, TOKEN_FILENAME);
-  if (fs.existsSync(tokenPath)) {
-    const existing = fs.readFileSync(tokenPath, 'utf8').trim();
+  const filePath = path.join(userDataDir, TOKEN_FILENAME);
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, 'utf8').trim();
     if (existing.length >= 32) {
-      fs.chmodSync(tokenPath, 0o600);
+      fs.chmodSync(filePath, 0o600);
       return existing;
     }
   }
   const token = crypto.randomBytes(32).toString('base64url');
-  fs.writeFileSync(tokenPath, token, { encoding: 'utf8', mode: 0o600 });
-  fs.chmodSync(tokenPath, 0o600);
+  writeTokenFile(userDataDir, token);
   return token;
 }
 
