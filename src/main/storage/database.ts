@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const MIGRATIONS: Record<number, string> = {
   1: `
@@ -51,6 +51,11 @@ const MIGRATIONS: Record<number, string> = {
       started_at INTEGER NOT NULL,
       fallback_expires_at INTEGER NOT NULL
     );
+  `,
+  2: `
+    ALTER TABLE consultants ADD COLUMN seen_generation_ids TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE consultants ADD COLUMN stopped_generation_ids TEXT NOT NULL DEFAULT '[]';
+    CREATE INDEX IF NOT EXISTS idx_facts_received_at ON facts(received_at);
   `,
 };
 
