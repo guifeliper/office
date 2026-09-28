@@ -139,8 +139,19 @@ function backupHooks(userDataDir: string, raw: string): void {
 function atomicWriteJson(filePath: string, data: HooksFile): void {
   const dir = path.dirname(filePath);
   const tmp = path.join(dir, `.hooks.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  let mode = 0o600;
+  try {
+    mode = fs.statSync(filePath).mode & 0o777;
+  } catch {
+    // new file
+  }
+  fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { encoding: 'utf8', mode });
   fs.renameSync(tmp, filePath);
+  try {
+    fs.chmodSync(filePath, mode);
+  } catch {
+    // ignore
+  }
 }
 
 function readOptional(filePath: string): string | null {

@@ -9,6 +9,8 @@ function consultant(partial: Partial<Consultant> & Pick<Consultant, 'conversatio
     workState: 'active',
     provenance: 'observed',
     currentGenerationId: 'gen-1',
+    seenGenerationIds: ['gen-1'],
+    stoppedGenerationIds: [],
     lastObservedAt: 1000,
     leaseExpiresAt: 1000 + 86_400_000,
     labelSuffix: 'AB12',
@@ -47,6 +49,7 @@ describe('office projection view model', () => {
     expect(view.consultants[1]!.label).toBe('Consultant · BBBB');
     expect(view.consultants[0]!.badge).toBe('observed');
     expect(view.consultants[1]!.ambientEligible).toBe(true);
+    expect(view.consultants[1]!.badge).toBe('ambient');
     expect(view.consultants[2]!.badge).toBe('stale');
     expect(view.consultants.map((c) => c.label).join(' ')).not.toContain('c1');
     expect(view.consultants[0]!.accentHue).not.toBe(view.consultants[1]!.accentHue);

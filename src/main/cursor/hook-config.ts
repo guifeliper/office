@@ -21,6 +21,7 @@ export const RETAINED_FIELDS_FOR_PREVIEW = [
   'parent_conversation_id',
   'collaborator_type / subagent_type',
   'tool_name',
+  'tool_use_id',
   'tool_call_id',
   'cursor_version',
   'fingerprint (derived)',
@@ -35,17 +36,17 @@ export interface HookCommandEntry {
   [key: string]: unknown;
 }
 
-export interface HooksFile {
+/** Parsed hooks.json preserving unknown top-level keys (AE7). */
+export type HooksFile = {
   version: number;
   hooks: Record<string, HookCommandEntry[]>;
-}
+} & Record<string, unknown>;
 
 export function isOfficeOwnedEntry(entry: HookCommandEntry): boolean {
   return typeof entry.command === 'string' && entry.command.includes(OFFICE_HOOK_MARKER);
 }
 
 export function buildOfficeCommand(wrapperPath: string, hookName: SubscribedHook): string {
-  // Marker must remain in the command string for ownership detection.
   return `"${wrapperPath}" ${hookName} # ${OFFICE_HOOK_MARKER}`;
 }
 
@@ -86,7 +87,8 @@ export function parseHooksFile(raw: string): HooksFile {
     });
   }
 
-  return { version: 1, hooks };
+  // Preserve unknown top-level keys byte-equivalent in meaning.
+  return { ...obj, version: 1, hooks };
 }
 
 export function mergeOfficeHooks(
@@ -94,7 +96,7 @@ export function mergeOfficeHooks(
   wrapperPath: string,
 ): HooksFile {
   const base: HooksFile = existing
-    ? { version: 1, hooks: { ...existing.hooks } }
+    ? { ...existing, version: 1, hooks: { ...existing.hooks } }
     : { version: 1, hooks: {} };
 
   for (const hookName of SUBSCRIBED_HOOKS) {
@@ -116,7 +118,7 @@ export function removeOfficeHooks(existing: HooksFile): HooksFile {
       hooks[name] = kept;
     }
   }
-  return { version: 1, hooks };
+  return { ...existing, version: 1, hooks };
 }
 
 export function responseForHook(hookName: string): string {

@@ -43,6 +43,14 @@ export function portPath(userDataDir: string): string {
   return path.join(userDataDir, PORT_FILENAME);
 }
 
+export function deletePortFile(userDataDir: string): void {
+  try {
+    fs.rmSync(path.join(userDataDir, PORT_FILENAME), { force: true });
+  } catch {
+    // ignore
+  }
+}
+
 export function deleteSecrets(userDataDir: string): void {
   for (const name of [TOKEN_FILENAME, PORT_FILENAME, 'hooks.json.backup']) {
     try {

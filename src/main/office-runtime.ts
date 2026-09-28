@@ -4,10 +4,9 @@ import type { BrowserWindow } from 'electron';
 import type { OfficeProjection } from '../domain/office-reducer';
 import { previewInstall, installHooks, uninstallHooks } from './cursor/hook-installer';
 import {
+  deletePortFile,
   deleteSecrets,
   ensureInstallToken,
-  portPath,
-  tokenPath,
   writePortFile,
   writeTokenFile,
 } from './cursor/token';
@@ -22,6 +21,7 @@ import { closeDatabase, destroyDatabaseFiles, openDatabase, type OfficeDatabase 
 import { OfficeStore } from './storage/office-store';
 import { systemClock } from './system-clock';
 import { SUBSCRIBED_HOOKS } from './cursor/hook-config';
+import { LeaseTicker } from './lease-ticker';
 
 export type HealthStatus =
   | 'disconnected'
@@ -43,6 +43,7 @@ export class OfficeRuntime {
   private db: OfficeDatabase | null = null;
   private store: OfficeStore | null = null;
   private server: IngestionServer | null = null;
+  private ticker: LeaseTicker | null = null;
   private windows: Set<BrowserWindow> = new Set();
   private installed = false;
   private token = '';
@@ -51,26 +52,15 @@ export class OfficeRuntime {
   async start(): Promise<void> {
     const userData = getUserDataDir();
     fs.mkdirSync(userData, { recursive: true, mode: 0o700 });
+    // Invalidate any stale port before binding so a prior quit cannot be hijacked.
+    deletePortFile(userData);
     this.token = ensureInstallToken(userData);
     this.db = openDatabase(getDatabasePath());
     this.store = new OfficeStore(this.db, systemClock);
     this.lastProjection = this.store.restore();
 
-    this.server = await startIngestionServer({
-      token: this.token,
-      store: this.store,
-      clock: systemClock,
-      onProjection: (projection) => {
-        this.lastProjection = projection;
-        this.broadcastProjection();
-      },
-    });
-    writePortFile(userData, this.server.port);
-
-    // Export paths for the wrapper via files only (token never in argv).
-    process.env.CURSOR_OFFICE_TOKEN_FILE = tokenPath(userData);
-    process.env.CURSOR_OFFICE_PORT_FILE = portPath(userData);
-
+    await this.bindIngestion(userData);
+    this.startTicker();
     this.installed = detectInstalled(getHooksJsonPath());
   }
 
@@ -99,14 +89,17 @@ export class OfficeRuntime {
     return preview;
   }
 
-  installObserver() {
+  async installObserver() {
     const userData = getUserDataDir();
     if (!this.token) {
       this.token = ensureInstallToken(userData);
     } else {
       writeTokenFile(userData, this.token);
     }
-    if (this.server) {
+    if (!this.server) {
+      await this.bindIngestion(userData);
+      this.startTicker();
+    } else {
       writePortFile(userData, this.server.port);
     }
     const result = installHooks({
@@ -175,7 +168,7 @@ export class OfficeRuntime {
     };
   }
 
-  uninstallIntegration() {
+  async uninstallIntegration() {
     const hooksResult = uninstallHooks({
       hooksJsonPath: getHooksJsonPath(),
       wrapperPath: getWrapperPath(),
@@ -186,32 +179,8 @@ export class OfficeRuntime {
     }
 
     const userData = getUserDataDir();
-    if (this.db) {
-      closeDatabase(this.db);
-      this.db = null;
-    }
-    destroyDatabaseFiles(getDatabasePath());
-    deleteSecrets(userData);
-
-    // Owned wrapper copy under userData if present
-    const localWrapper = path.join(userData, 'cursor-hook.sh');
-    try {
-      fs.rmSync(localWrapper, { force: true });
-    } catch {
-      // ignore
-    }
-
-    this.installed = false;
-    // Re-open empty DB for continued session after teardown.
-    // Token remains deleted until the next install/start cycle (privacy teardown).
-    this.db = openDatabase(getDatabasePath());
-    this.store = new OfficeStore(this.db, systemClock);
-    this.lastProjection = { consultants: [], collaborators: [] };
-    this.broadcastProjection();
-    return { ok: true as const };
-  }
-
-  async stop(): Promise<void> {
+    this.ticker?.stop();
+    this.ticker = null;
     if (this.server) {
       await this.server.close();
       this.server = null;
@@ -220,6 +189,69 @@ export class OfficeRuntime {
       closeDatabase(this.db);
       this.db = null;
     }
+    destroyDatabaseFiles(getDatabasePath());
+    deleteSecrets(userData);
+
+    const localWrapper = path.join(userData, 'cursor-hook.sh');
+    try {
+      fs.rmSync(localWrapper, { force: true });
+    } catch {
+      // ignore
+    }
+
+    this.installed = false;
+    this.token = '';
+    this.db = openDatabase(getDatabasePath());
+    this.store = new OfficeStore(this.db, systemClock);
+    this.lastProjection = { consultants: [], collaborators: [] };
+    this.broadcastProjection();
+    return { ok: true as const };
+  }
+
+  async stop(): Promise<void> {
+    this.ticker?.stop();
+    this.ticker = null;
+    if (this.server) {
+      await this.server.close();
+      this.server = null;
+    }
+    deletePortFile(getUserDataDir());
+    if (this.db) {
+      closeDatabase(this.db);
+      this.db = null;
+    }
+  }
+
+  /** Test seam for lease ticker. */
+  getLeaseTicker(): LeaseTicker | null {
+    return this.ticker;
+  }
+
+  private async bindIngestion(userData: string): Promise<void> {
+    if (!this.store) {
+      throw new Error('Store not initialized');
+    }
+    deletePortFile(userData);
+    this.server = await startIngestionServer({
+      token: this.token,
+      store: this.store,
+      clock: systemClock,
+      onProjection: (projection) => {
+        this.lastProjection = projection;
+        this.broadcastProjection();
+      },
+    });
+    writePortFile(userData, this.server.port);
+  }
+
+  private startTicker(): void {
+    if (!this.store) return;
+    this.ticker?.stop();
+    this.ticker = new LeaseTicker(this.store, (projection) => {
+      this.lastProjection = projection;
+      this.broadcastProjection();
+    });
+    this.ticker.start();
   }
 
   private broadcastProjection(): void {

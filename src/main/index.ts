@@ -78,6 +78,10 @@ app.on('before-quit', () => {
   void runtime.stop();
 });
 
+app.on('will-quit', () => {
+  void runtime.stop();
+});
+
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (event) => {
     event.preventDefault();

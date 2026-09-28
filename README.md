@@ -42,7 +42,7 @@ npm run make              # zip/dmg artifacts
 
 1. Open the app and review the Connect Cursor preview (exact hook names, retained fields, command path, additive diff).
 2. Confirm to merge Office-owned commands into `~/.cursor/hooks.json` without removing unrelated hooks.
-3. A per-install CSPRNG token is stored under app user data with mode `0600`. The wrapper reads it from a file (never argv) and posts to `127.0.0.1` only.
+3. A per-install CSPRNG token and loopback port file are stored next to the staged wrapper under app user data (mode `0600`). The wrapper resolves those paths relative to its own location so Cursor-spawned hooks work without Electron env vars. The Bearer token is passed to curl via a header file descriptor (never argv); stdin is piped (never a bash here-string temp file). The port file is deleted on quit.
 4. Use **Integration → Uninstall** to remove only Office-owned hook entries, the mode-`0600` hooks backup and token, the staged wrapper, and the SQLite database including WAL/SHM sidecars.
 
 Tests never touch the real `~/.cursor/hooks.json`; they use temporary directories via `CURSOR_OFFICE_HOOKS_PATH` / `CURSOR_OFFICE_USER_DATA`.
