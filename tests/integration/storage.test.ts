@@ -155,14 +155,22 @@ describe('SQLite office store', () => {
     const store = new OfficeStore(db, clock);
     store.ingest(work({ fingerprint: 'fp-ok' }));
 
-    store.ingestWithForcedFailure(
-      work({ fingerprint: 'fp-fail', conversationId: 'other', generationId: 'gen-x' }),
-    );
+    expect(() =>
+      store.ingestWithProjectionFailure(
+        work({ fingerprint: 'fp-fail', conversationId: 'other', generationId: 'gen-x' }),
+      ),
+    ).toThrow(/forced projection failure/);
 
     const events = new EventRepository(db);
     expect(events.listFacts()).toHaveLength(1);
     expect(store.getProjection().consultants).toHaveLength(1);
     expect(store.getProjection().consultants[0]!.conversationId).toBe('conv-a');
+    // Retry after failure still accepts the fact (was rolled back, not treated as duplicate).
+    const retry = store.ingest(
+      work({ fingerprint: 'fp-fail', conversationId: 'other', generationId: 'gen-x' }),
+    );
+    expect(retry.accepted).toBe(true);
+    expect(retry.projection.consultants).toHaveLength(2);
     closeDatabase(db);
   });
 

@@ -1,7 +1,9 @@
 import type { Collaborator, Consultant, OfficeState } from '../../domain/lifecycle';
 import { createEmptyOfficeState } from '../../domain/lifecycle';
-import type { OfficeDatabase } from './database';
 import type { Provenance, WorkState } from '../../domain/events';
+import { CONSULTANT_LEASE_MS } from '../../domain/events';
+import type { OfficeDatabase } from './database';
+import { EventRepository } from './event-repository';
 
 interface ConsultantRow {
   key: string;
@@ -14,6 +16,8 @@ interface ConsultantRow {
   lease_expires_at: number;
   label_suffix: string;
   accent_hue: number;
+  seen_generation_ids: string | null;
+  stopped_generation_ids: string | null;
 }
 
 interface CollaboratorRow {
@@ -39,8 +43,8 @@ export class ProjectionRepository {
       `INSERT INTO consultants (
         key, conversation_id, source_id, work_state, provenance,
         current_generation_id, last_observed_at, lease_expires_at,
-        label_suffix, accent_hue
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        label_suffix, accent_hue, seen_generation_ids, stopped_generation_ids
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     for (const [key, c] of state.consultants) {
@@ -55,6 +59,8 @@ export class ProjectionRepository {
         c.leaseExpiresAt,
         c.labelSuffix,
         c.accentHue,
+        JSON.stringify(c.seenGenerationIds),
+        JSON.stringify(c.stoppedGenerationIds),
       );
     }
 
@@ -80,7 +86,7 @@ export class ProjectionRepository {
     }
   }
 
-  loadState(): OfficeState {
+  loadState(nowMs: number = Date.now()): OfficeState {
     const state = createEmptyOfficeState();
 
     const consultants = this.db
@@ -93,6 +99,8 @@ export class ProjectionRepository {
         workState: row.work_state as WorkState,
         provenance: row.provenance as Provenance,
         currentGenerationId: row.current_generation_id,
+        seenGenerationIds: parseIdList(row.seen_generation_ids),
+        stoppedGenerationIds: parseIdList(row.stopped_generation_ids),
         lastObservedAt: row.last_observed_at,
         leaseExpiresAt: row.lease_expires_at,
         labelSuffix: row.label_suffix,
@@ -119,11 +127,10 @@ export class ProjectionRepository {
       state.collaborators.set(row.key, collaborator);
     }
 
-    const fingerprints = this.db
-      .prepare('SELECT fingerprint FROM facts')
-      .all() as unknown as Array<{ fingerprint: string }>;
-    for (const row of fingerprints) {
-      state.seenFingerprints.add(row.fingerprint);
+    const cutoff = nowMs - CONSULTANT_LEASE_MS;
+    const events = new EventRepository(this.db);
+    for (const fingerprint of events.listFingerprintsSince(cutoff)) {
+      state.seenFingerprints.add(fingerprint);
     }
 
     return state;
@@ -133,5 +140,16 @@ export class ProjectionRepository {
     const consultants = this.db.prepare('SELECT * FROM consultants').all();
     const collaborators = this.db.prepare('SELECT * FROM collaborators').all();
     return JSON.stringify({ consultants, collaborators });
+  }
+}
+
+function parseIdList(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === 'string');
+  } catch {
+    return [];
   }
 }

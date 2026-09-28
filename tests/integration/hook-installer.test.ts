@@ -45,11 +45,12 @@ describe('hook installer', () => {
 
     const preview = previewInstall(paths);
     expect(preview.hooks).toEqual([...SUBSCRIBED_HOOKS]);
-    expect(preview.commandPath).toBe(paths.wrapperPath);
+    expect(preview.commandPath).toBe(path.join(paths.userDataDir, 'cursor-hook.sh'));
     expect(preview.retainedFields.length).toBeGreaterThan(0);
 
     const result = installHooks(paths);
     expect(result.ok).toBe(true);
+    expect(fs.existsSync(path.join(paths.userDataDir, 'cursor-hook.sh'))).toBe(true);
 
     const written = JSON.parse(fs.readFileSync(paths.hooksJsonPath, 'utf8')) as {
       version: number;
@@ -60,8 +61,10 @@ describe('hook installer', () => {
       expect(written.hooks[name]?.some((e) => e.command.includes('cursor-office-observer'))).toBe(
         true,
       );
+      expect(written.hooks[name]?.some((e) => e.command.includes(paths.userDataDir))).toBe(true);
     }
   });
+
 
   it('AE7: install and uninstall preserve unrelated hook entries', () => {
     const paths = tempDirs();
