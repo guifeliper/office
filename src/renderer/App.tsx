@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { OfficeProjection } from '../domain/office-reducer';
+import { OfficeCanvas } from './office/OfficeCanvas';
 
 type ShellInfo = {
   productName: string;
@@ -7,8 +9,15 @@ type ShellInfo = {
   version: string;
 };
 
+const EMPTY_PROJECTION: OfficeProjection = {
+  consultants: [],
+  collaborators: [],
+};
+
 export function App() {
   const [shell, setShell] = useState<ShellInfo | null>(null);
+  const [projection, setProjection] = useState<OfficeProjection>(EMPTY_PROJECTION);
+  const [connected, setConnected] = useState(false);
   const [nodeLeaked, setNodeLeaked] = useState(false);
 
   useEffect(() => {
@@ -19,6 +28,33 @@ export function App() {
     void window.office.getShellInfo().then((info) => {
       setShell(info as ShellInfo);
     });
+
+    void window.office.getProjection().then((raw) => {
+      const p = raw as OfficeProjection & { connected?: boolean };
+      setProjection({
+        consultants: p.consultants ?? [],
+        collaborators: p.collaborators ?? [],
+      });
+      setConnected(Boolean(p.connected));
+    });
+
+    void window.office.getHealth().then((health) => {
+      const status = (health as { status?: string }).status;
+      setConnected(status === 'connected' || status === 'waiting');
+    });
+
+    const unsubscribe = window.office.onProjection((raw) => {
+      const p = raw as OfficeProjection & { connected?: boolean };
+      setProjection({
+        consultants: p.consultants ?? [],
+        collaborators: p.collaborators ?? [],
+      });
+      if (typeof p.connected === 'boolean') {
+        setConnected(p.connected);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   return (
@@ -28,7 +64,7 @@ export function App() {
         <p className="shell__tagline">Viewer-only local observation</p>
       </header>
       <main className="shell__stage" data-testid="office-stage">
-        <p className="shell__waiting">Waiting for Cursor activity</p>
+        <OfficeCanvas projection={projection} connected={connected} />
         {shell ? (
           <p className="shell__meta" data-testid="shell-meta">
             v{shell.version} · {shell.platform}
