@@ -1,6 +1,9 @@
 import type { Provenance, WorkState } from './events';
 import { COLLABORATOR_FALLBACK_MS, CONSULTANT_LEASE_MS } from './events';
 
+/** Bound retained generation ids per consultant (KTD5). */
+export const MAX_TRACKED_GENERATIONS = 32;
+
 export interface Clock {
   now(): number;
 }
@@ -27,6 +30,10 @@ export interface Consultant {
   workState: WorkState;
   provenance: Provenance;
   currentGenerationId: string | null;
+  /** Generations observed for this visit; bounded. */
+  seenGenerationIds: string[];
+  /** Generations that have received a stop; late work must not revive them. */
+  stoppedGenerationIds: string[];
   lastObservedAt: number;
   leaseExpiresAt: number;
   /** Stable 4-character label suffix for display. */
@@ -85,6 +92,18 @@ export function leaseFrom(lastObservedAt: number): number {
 
 export function collaboratorFallbackFrom(startedAt: number): number {
   return startedAt + COLLABORATOR_FALLBACK_MS;
+}
+
+/** Append then cap from the newest side. */
+export function pushBoundedId(ids: string[], id: string, max = MAX_TRACKED_GENERATIONS): string[] {
+  if (ids.includes(id)) {
+    return ids;
+  }
+  const next = [...ids, id];
+  if (next.length <= max) {
+    return next;
+  }
+  return next.slice(next.length - max);
 }
 
 function fnv1a(input: string): number {
