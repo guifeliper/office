@@ -1,4 +1,5 @@
 import type { CanonicalFact, CanonicalFactKind } from '../../domain/events';
+import { CONSULTANT_LEASE_MS } from '../../domain/events';
 import type { OfficeDatabase } from './database';
 
 interface FactRow {
@@ -49,6 +50,23 @@ export class EventRepository {
         fact.cursorVersion ?? null,
       );
     return true;
+  }
+
+  /** Drop facts outside the consultant lease window (bounded journal). */
+  pruneOlderThan(cutoffMs: number): number {
+    const result = this.db.prepare('DELETE FROM facts WHERE received_at < ?').run(cutoffMs);
+    return Number(result.changes ?? 0);
+  }
+
+  pruneBeyondLease(nowMs: number): number {
+    return this.pruneOlderThan(nowMs - CONSULTANT_LEASE_MS);
+  }
+
+  listFingerprintsSince(cutoffMs: number): string[] {
+    const rows = this.db
+      .prepare('SELECT fingerprint FROM facts WHERE received_at >= ?')
+      .all(cutoffMs) as unknown as Array<{ fingerprint: string }>;
+    return rows.map((r) => r.fingerprint);
   }
 
   listFacts(): CanonicalFact[] {

@@ -425,4 +425,79 @@ describe('office reducer', () => {
     expect(c.workState).toBe('active');
     expect(c.provenance).toBe('observed');
   });
+
+  it('late work after a stopped generation does not reactivate', () => {
+    const clock = new FakeClock(T0);
+    let state = createEmptyOfficeState();
+    state = applyFact(state, work({ conversationId: 'conv-a', fingerprint: 'fp-1', generationId: 'gen-1' }), clock);
+    state = applyFact(state, stop({ conversationId: 'conv-a', fingerprint: 'fp-stop', generationId: 'gen-1' }), clock);
+    expect(projectOffice(state).consultants[0]!.workState).toBe('idle');
+
+    state = applyFact(
+      state,
+      work({
+        conversationId: 'conv-a',
+        fingerprint: 'fp-late-work',
+        generationId: 'gen-1',
+        receivedAt: clock.now() + 1,
+      }),
+      clock,
+    );
+    const c = projectOffice(state).consultants[0]!;
+    expect(c.workState).toBe('idle');
+    expect(c.currentGenerationId).toBe('gen-1');
+  });
+
+  it('older generation cannot replace current; current stop still idles', () => {
+    const clock = new FakeClock(T0);
+    let state = createEmptyOfficeState();
+    state = applyFact(state, work({ conversationId: 'conv-a', fingerprint: 'fp-1', generationId: 'gen-1' }), clock);
+    state = applyFact(
+      state,
+      work({ conversationId: 'conv-a', fingerprint: 'fp-2', generationId: 'gen-2', receivedAt: T0 + 1 }),
+      clock,
+    );
+    expect(projectOffice(state).consultants[0]!.currentGenerationId).toBe('gen-2');
+
+    state = applyFact(
+      state,
+      work({ conversationId: 'conv-a', fingerprint: 'fp-late-g1', generationId: 'gen-1', receivedAt: T0 + 2 }),
+      clock,
+    );
+    expect(projectOffice(state).consultants[0]!.currentGenerationId).toBe('gen-2');
+    expect(projectOffice(state).consultants[0]!.workState).toBe('active');
+
+    state = applyFact(
+      state,
+      stop({ conversationId: 'conv-a', fingerprint: 'fp-stop-g2', generationId: 'gen-2', receivedAt: T0 + 3 }),
+      clock,
+    );
+    const c = projectOffice(state).consultants[0]!;
+    expect(c.workState).toBe('idle');
+    expect(c.currentGenerationId).toBe('gen-2');
+  });
+
+  it('startup marks retained collaborators stale/inferred', () => {
+    const clock = new FakeClock(T0);
+    let state = createEmptyOfficeState();
+    state = applyFact(state, work({ conversationId: 'parent', fingerprint: 'fp-p', generationId: 'gen-1' }), clock);
+    state = applyFact(
+      state,
+      {
+        kind: 'collaborator_started',
+        sourceId: 'cursor',
+        conversationId: 'parent',
+        parentConversationId: 'parent',
+        subagentId: 'sub-1',
+        collaboratorType: 'explore',
+        fingerprint: 'fp-sub',
+        receivedAt: T0,
+      },
+      clock,
+    );
+    state = applyStartupInference(state, clock);
+    const collab = projectOffice(state).collaborators[0]!;
+    expect(collab.workState).toBe('stale');
+    expect(collab.provenance).toBe('inferred');
+  });
 });

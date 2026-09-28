@@ -8,9 +8,29 @@ export interface OfficeCanvasProps {
   connected: boolean;
 }
 
+export type LatestOfficeProps = {
+  projection: OfficeProjection;
+  connected: boolean;
+};
+
+/** Pure helper used by mount/resize handlers — always read from latest, never a stale closure. */
+export function viewFromLatest(
+  latest: LatestOfficeProps,
+  width: number,
+  height: number,
+) {
+  return toOfficeViewModel(latest.projection, {
+    connected: latest.connected,
+    width,
+    height,
+  });
+}
+
 export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
+  const latestRef = useRef<LatestOfficeProps>({ projection, connected });
+  latestRef.current = { projection, connected };
 
   useEffect(() => {
     const host = hostRef.current;
@@ -24,24 +44,17 @@ export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
         scene.destroy();
         return;
       }
-      const view = toOfficeViewModel(projection, {
-        connected,
-        width: host.clientWidth,
-        height: host.clientHeight,
-      });
-      scene.setView(view);
+      scene.setView(
+        viewFromLatest(latestRef.current, host.clientWidth, host.clientHeight),
+      );
     });
 
     const onResize = () => {
       if (!hostRef.current || !sceneRef.current) return;
-      sceneRef.current.resize(hostRef.current.clientWidth, hostRef.current.clientHeight);
-      sceneRef.current.setView(
-        toOfficeViewModel(projection, {
-          connected,
-          width: hostRef.current.clientWidth,
-          height: hostRef.current.clientHeight,
-        }),
-      );
+      const w = hostRef.current.clientWidth;
+      const h = hostRef.current.clientHeight;
+      sceneRef.current.resize(w, h);
+      sceneRef.current.setView(viewFromLatest(latestRef.current, w, h));
     };
     window.addEventListener('resize', onResize);
 
@@ -51,8 +64,6 @@ export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
       scene.destroy();
       sceneRef.current = null;
     };
-    // Mount once; projection updates flow through the second effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -60,11 +71,11 @@ export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
     const scene = sceneRef.current;
     if (!host || !scene) return;
     scene.setView(
-      toOfficeViewModel(projection, {
-        connected,
-        width: host.clientWidth || 1280,
-        height: host.clientHeight || 800,
-      }),
+      viewFromLatest(
+        { projection, connected },
+        host.clientWidth || 1280,
+        host.clientHeight || 800,
+      ),
     );
   }, [projection, connected]);
 

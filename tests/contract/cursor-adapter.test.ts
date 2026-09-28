@@ -57,4 +57,44 @@ describe('CursorHookAdapter', () => {
     );
     expect(fact).toBeNull();
   });
+
+  it('uses tool_use_id so distinct tool calls produce distinct fingerprints', () => {
+    const a = adaptCursorHook(
+      'preToolUse',
+      sanitizeCursorPayload({
+        hook_event_name: 'preToolUse',
+        conversation_id: 'c',
+        generation_id: 'g',
+        tool_name: 'Read',
+        tool_use_id: 'tu-aaa',
+      })!,
+      1,
+    );
+    const b = adaptCursorHook(
+      'preToolUse',
+      sanitizeCursorPayload({
+        hook_event_name: 'preToolUse',
+        conversation_id: 'c',
+        generation_id: 'g',
+        tool_name: 'Read',
+        tool_use_id: 'tu-bbb',
+      })!,
+      1,
+    );
+    expect(a?.fingerprint).not.toBe(b?.fingerprint);
+  });
+
+  it('keeps tool_call_id for subagentStart fingerprint material', () => {
+    const start = adaptCursorHook(
+      'subagentStart',
+      sanitizeCursorPayload(SUBAGENT_START_FIXTURE)!,
+      1,
+    );
+    const other = adaptCursorHook(
+      'subagentStart',
+      sanitizeCursorPayload({ ...SUBAGENT_START_FIXTURE, tool_call_id: 'tc-other', subagent_id: 'sub-other' })!,
+      1,
+    );
+    expect(start?.fingerprint).not.toBe(other?.fingerprint);
+  });
 });

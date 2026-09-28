@@ -10,6 +10,7 @@ const ALLOWLIST = [
   'parent_conversation_id',
   'subagent_type',
   'tool_name',
+  'tool_use_id',
   'tool_call_id',
   'cursor_version',
   'session_id',
@@ -23,6 +24,9 @@ export type AllowlistedCursorFields = {
   parent_conversation_id?: string;
   subagent_type?: string;
   tool_name?: string;
+  /** Official id for preToolUse / postToolUse / postToolUseFailure. */
+  tool_use_id?: string;
+  /** Official id on subagentStart for the triggering Task tool call. */
   tool_call_id?: string;
   cursor_version?: string;
   session_id?: string;
@@ -56,14 +60,11 @@ export function adaptCursorHook(
   payload: AllowlistedCursorFields,
   receivedAt: number,
 ): CanonicalFact | null {
-  // Prefer explicit header/hook name; fall back to payload field.
   const eventName = hookName || payload.hook_event_name;
   if (!eventName) {
     return null;
   }
 
-  // Cloud-only / unsupported surfaces are ignored when conversation identity is absent
-  // on agent hooks, or when a cloud marker appears in allowlisted metadata.
   const conversationId = payload.conversation_id ?? payload.session_id;
   if (!conversationId) {
     return null;
@@ -115,17 +116,10 @@ function fingerprintFor(
     conversationId,
     payload.generation_id ?? '',
     payload.subagent_id ?? '',
+    payload.tool_use_id ?? '',
     payload.tool_call_id ?? '',
     payload.tool_name ?? '',
     payload.parent_conversation_id ?? '',
   ].join('|');
   return createHash('sha256').update(material).digest('hex').slice(0, 32);
-}
-
-export function assertNoForbiddenContent(text: string, forbidden: string[]): void {
-  for (const item of forbidden) {
-    if (text.includes(item)) {
-      throw new Error(`Forbidden content leaked: ${item}`);
-    }
-  }
 }

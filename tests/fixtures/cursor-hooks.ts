@@ -4,7 +4,7 @@ export const SENSITIVE_FIXTURE = {
   generation_id: 'gen-42',
   cursor_version: '1.7.2',
   tool_name: 'Shell',
-  tool_call_id: 'tc-1',
+  tool_use_id: 'tu-1',
   prompt: 'SECRET_PROMPT_TEXT',
   response: 'SECRET_RESPONSE_BODY',
   thought: 'SECRET_THOUGHT_CHAIN',
@@ -24,7 +24,7 @@ export const CLI_WORK_FIXTURE = {
   generation_id: 'gen-7',
   cursor_version: '1.7.2',
   tool_name: 'Read',
-  tool_call_id: 'tc-cli-1',
+  tool_use_id: 'tu-cli-1',
   prompt: 'SECRET_PROMPT_TEXT',
 };
 
@@ -34,7 +34,7 @@ export const IDE_WORK_FIXTURE = {
   generation_id: 'gen-7',
   cursor_version: '1.7.2',
   tool_name: 'Read',
-  tool_call_id: 'tc-cli-1',
+  tool_use_id: 'tu-cli-1',
   attachments: [{ type: 'file', content: 'SECRET_RESPONSE_BODY' }],
 };
 
