@@ -9,6 +9,7 @@ import {
   deriveAccentHue,
   deriveLabelSuffix,
   leaseFrom,
+  pushBoundedId,
 } from './lifecycle';
 
 export interface OfficeProjection {
@@ -91,6 +92,7 @@ export function evaluateLeases(state: OfficeState, clock: Clock): OfficeState {
 export function applyStartupInference(state: OfficeState, clock: Clock): OfficeState {
   const leased = evaluateLeases(state, clock);
   const consultants = new Map(leased.consultants);
+  const collaborators = new Map(leased.collaborators);
 
   for (const [key, consultant] of consultants) {
     if (consultant.workState === 'active' && consultant.provenance === 'observed') {
@@ -102,10 +104,25 @@ export function applyStartupInference(state: OfficeState, clock: Clock): OfficeS
     }
   }
 
+  for (const [key, collaborator] of collaborators) {
+    if (collaborator.workState === 'active' && collaborator.provenance === 'observed') {
+      collaborators.set(key, {
+        ...collaborator,
+        workState: 'stale',
+        provenance: 'inferred',
+      });
+    }
+  }
+
   return {
     ...leased,
     consultants,
+    collaborators,
   };
+}
+
+export function projectionsEqual(a: OfficeProjection, b: OfficeProjection): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function applyWorkObserved(state: OfficeState, fact: CanonicalFact): OfficeState {
@@ -120,6 +137,8 @@ function applyWorkObserved(state: OfficeState, fact: CanonicalFact): OfficeState
       workState: 'active',
       provenance: 'observed',
       currentGenerationId: generationId,
+      seenGenerationIds: generationId ? [generationId] : [],
+      stoppedGenerationIds: [],
       lastObservedAt: fact.receivedAt,
       leaseExpiresAt: leaseFrom(fact.receivedAt),
       labelSuffix: deriveLabelSuffix(fact.sourceId, fact.conversationId),
@@ -128,11 +147,31 @@ function applyWorkObserved(state: OfficeState, fact: CanonicalFact): OfficeState
     return state;
   }
 
+  if (generationId && existing.stoppedGenerationIds.includes(generationId)) {
+    // Late work for a stopped generation must not reactivate.
+    return state;
+  }
+
+  if (
+    generationId &&
+    existing.currentGenerationId !== null &&
+    generationId !== existing.currentGenerationId &&
+    existing.seenGenerationIds.includes(generationId)
+  ) {
+    // Older seen generation must not replace the current generation.
+    return state;
+  }
+
+  const seenGenerationIds = generationId
+    ? pushBoundedId(existing.seenGenerationIds, generationId)
+    : existing.seenGenerationIds;
+
   state.consultants.set(key, {
     ...existing,
     workState: 'active',
     provenance: 'observed',
     currentGenerationId: generationId ?? existing.currentGenerationId,
+    seenGenerationIds,
     lastObservedAt: fact.receivedAt,
     leaseExpiresAt: leaseFrom(fact.receivedAt),
   });
@@ -147,12 +186,20 @@ function applyGenerationStopped(state: OfficeState, fact: CanonicalFact): Office
   }
 
   const stopGen = fact.generationId;
+  const stoppedGenerationIds = stopGen
+    ? pushBoundedId(existing.stoppedGenerationIds, stopGen)
+    : existing.stoppedGenerationIds;
+
   if (
     stopGen !== undefined &&
     existing.currentGenerationId !== null &&
     stopGen !== existing.currentGenerationId
   ) {
-    // Late stop for an older generation — ignore for work-state transitions.
+    // Late stop for an older generation — record stopped, leave current active.
+    state.consultants.set(key, {
+      ...existing,
+      stoppedGenerationIds,
+    });
     return state;
   }
 
@@ -161,6 +208,12 @@ function applyGenerationStopped(state: OfficeState, fact: CanonicalFact): Office
       ...existing,
       workState: 'idle',
       provenance: 'observed',
+      stoppedGenerationIds,
+    });
+  } else {
+    state.consultants.set(key, {
+      ...existing,
+      stoppedGenerationIds,
     });
   }
 
@@ -171,7 +224,6 @@ function applyCollaboratorStarted(state: OfficeState, fact: CanonicalFact): Offi
   const parentId = fact.parentConversationId ?? fact.conversationId;
   const parentKey = consultantKey(fact.sourceId, parentId);
   if (!state.consultants.has(parentKey)) {
-    // Parent must exist; do not invent a consultant from collaborator alone.
     return state;
   }
 
