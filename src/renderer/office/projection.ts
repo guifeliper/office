@@ -87,6 +87,7 @@ export function toOfficeViewModel(
 function badgeFor(c: Consultant): ProvenanceBadge {
   if (c.workState === 'stale') return 'stale';
   if (c.provenance === 'inferred') return 'inferred';
-  if (c.workState === 'idle') return 'observed';
+  // Idle observed consultants perform ambient locomotion — badge must say so (R12).
+  if (c.workState === 'idle' && c.provenance === 'observed') return 'ambient';
   return c.provenance;
 }
