@@ -14,6 +14,8 @@ export interface ConsultantViewModel {
   provenance: Consultant['provenance'];
   badge: ProvenanceBadge;
   ambientEligible: boolean;
+  /** Epoch ms of the last work_observed. Presence measures the 15-minute absence from this. */
+  lastObservedAt: number;
   /** Desk anchor in world pixels. Live position is owned by the presence director. */
   x: number;
   y: number;
@@ -31,6 +33,8 @@ export interface CollaboratorViewModel {
   workState: Collaborator['workState'];
   provenance: Collaborator['provenance'];
   badge: ProvenanceBadge;
+  /** Epoch ms of the collaborator's start. Presence ages stale collaborators from this. */
+  lastObservedAt: number;
   /** Preferred desk. Presence assigns a free chair; this is not a follow offset. */
   x: number;
   y: number;
@@ -78,6 +82,7 @@ export function toOfficeViewModel(
       provenance: c.provenance,
       badge,
       ambientEligible: c.workState === 'idle' && c.provenance === 'observed',
+      lastObservedAt: c.lastObservedAt,
       x: place.desk.x,
       y: place.desk.y,
       facing: place.desk.facing,
@@ -98,6 +103,7 @@ export function toOfficeViewModel(
       workState: collab.workState,
       provenance: collab.provenance,
       badge: collaboratorBadge(collab),
+      lastObservedAt: collab.startedAt,
       x: place.desk.x,
       y: place.desk.y,
     };
@@ -127,13 +133,15 @@ export interface RosterEntry {
 /** Consultants, with their collaborators indented underneath. The badge color matches the map dot. */
 export function rosterRows(projection: OfficeProjection): RosterEntry[] {
   const byParent = new Map<string, Collaborator[]>();
-  for (const collab of projection.collaborators) {
+  const visibleCollaborators = projection.collaborators.filter((collab) => collab.workState !== 'stale');
+  for (const collab of visibleCollaborators) {
     const list = byParent.get(collab.parentConversationId) ?? [];
     list.push(collab);
     byParent.set(collab.parentConversationId, list);
   }
-  const known = new Set(projection.consultants.map((c) => c.conversationId));
-  const rows: RosterEntry[] = projection.consultants.map((consultant) => ({
+  const visibleConsultants = projection.consultants.filter((consultant) => consultant.workState !== 'stale');
+  const known = new Set(visibleConsultants.map((c) => c.conversationId));
+  const rows: RosterEntry[] = visibleConsultants.map((consultant) => ({
     id: `${consultant.sourceId}:${consultant.conversationId}`,
     label: `Consultant · ${consultant.labelSuffix}`,
     badge: badgeFor(consultant),
@@ -156,6 +164,13 @@ export function rosterRows(projection: OfficeProjection): RosterEntry[] {
     }
   }
   return rows;
+}
+
+/** Active bodies past the 16 desks and the 4 door spots. They stay in the roster. */
+export function waitingCount(projection: OfficeProjection): number {
+  const active = projection.consultants.filter((c) => c.workState === 'active').length
+    + projection.collaborators.filter((c) => c.workState === 'active').length;
+  return Math.max(0, active - 20);
 }
 
 function badgeFor(c: Consultant): ProvenanceBadge {

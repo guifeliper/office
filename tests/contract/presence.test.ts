@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DESKS, SOUTH_GATE, gridFor, placeConsultant, waypointFor } from '../../src/renderer/office/landmarks';
+import { DESKS, DOOR_QUEUE, SOUTH_GATE, gridFor, placeConsultant } from '../../src/renderer/office/landmarks';
 import { LEISURE_DEFS, LEISURE_ZONE, preferredLeisureKind } from '../../src/renderer/office/leisure';
+import { ABSENCE_MS, PresenceDirector, type PresenceConsultant } from '../../src/renderer/office/presence';
+import { visibleInScene } from '../../src/renderer/office/scene-visibility';
 import { cellAt } from '../../src/renderer/office/world-layout';
-import {
-  PresenceDirector,
-  type PresenceConsultant,
-} from '../../src/renderer/office/presence';
+import { CONSULTANT_LEASE_MS } from '../../src/domain/events';
 
 const id = 'cursor:arrival';
 
@@ -180,7 +179,7 @@ describe('presence director', () => {
     expect(back.monitor).toBe('working');
   });
 
-  it('seats a collaborator at their own desk, and stands them at leisure when the 16 are full', () => {
+  it('seats a collaborator at their own desk, and queues them at the door when the 16 are full', () => {
     const director = new PresenceDirector();
     const parent = 'cursor:parent-conversation';
     const child = 'cursor:sub:subagent-9';
@@ -209,10 +208,7 @@ describe('presence director', () => {
     expect(overflow.pose).toBe('stand');
     expect(overflow.monitor).toBe('off');
     expect(DESKS.some((desk) => desk.x === overflow.x && desk.y === overflow.y)).toBe(false);
-    expect(LEISURE_DEFS.some((spot) => {
-      const at = waypointFor(spot);
-      return at.x === overflow.x && at.y === overflow.y;
-    })).toBe(true);
+    expect(DOOR_QUEUE.some((spot) => spot.x === overflow.x && spot.y === overflow.y)).toBe(true);
 
     full.sync([
       { id: ids[0]!, workState: 'active', ambientEligible: false },
@@ -235,5 +231,144 @@ describe('presence director', () => {
 
     director.sync([{ id: 'cursor:b', workState: 'idle', ambientEligible: true }]);
     expect(director.step(16, false).map((snap) => snap.id)).toEqual(['cursor:b']);
+  });
+
+  it('seats at most 16, queues at most 4, and leaves old idle and stale off the canvas', () => {
+    const now = 10_000_000;
+    const old = now - ABSENCE_MS - 1;
+    const people = [
+      ...Array.from({ length: 22 }, (_, i) => ({
+        id: `cursor:active-${i}`,
+        workState: 'active' as const,
+        ambientEligible: false,
+        lastObservedAt: now,
+      })),
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: `cursor:idle-${i}`,
+        workState: 'idle' as const,
+        ambientEligible: true,
+        lastObservedAt: now,
+      })),
+      ...Array.from({ length: 2 }, (_, i) => ({
+        id: `cursor:stale-fresh-${i}`,
+        workState: 'stale' as const,
+        ambientEligible: false,
+        lastObservedAt: now,
+      })),
+      ...Array.from({ length: 14 }, (_, i) => ({
+        id: `cursor:idle-old-${i}`,
+        workState: 'idle' as const,
+        ambientEligible: true,
+        lastObservedAt: old,
+      })),
+      ...Array.from({ length: 14 }, (_, i) => ({
+        id: `cursor:stale-old-${i}`,
+        workState: 'stale' as const,
+        ambientEligible: false,
+        lastObservedAt: old,
+      })),
+    ];
+    expect(people).toHaveLength(60);
+
+    const director = new PresenceDirector();
+    director.sync(people, now);
+    const canvas = director.step(0, true, now);
+    const cells = canvas.map((snap) => {
+      const cell = cellAt(snap.x, snap.y);
+      return `${snap.zone}:${cell.col},${cell.row}`;
+    });
+    const seated = canvas.filter((snap) => snap.deskIndex >= 0 && snap.pose === 'sit');
+    const queued = canvas.filter((snap) => snap.mode === 'overflow');
+    const leisure = canvas.filter((snap) => snap.mode === 'leisure' || (snap.mode === 'hold' && snap.deskIndex < 0));
+
+    expect(seated).toHaveLength(DESKS.length);
+    expect(queued).toHaveLength(DOOR_QUEUE.length);
+    expect(leisure.length).toBeLessThanOrEqual(LEISURE_DEFS.length);
+    expect(new Set(cells).size).toBe(canvas.length);
+    expect(canvas.some((snap) => snap.id.startsWith('cursor:idle-old-'))).toBe(false);
+    expect(canvas.some((snap) => snap.id.startsWith('cursor:stale-old-'))).toBe(false);
+    expect(canvas.some((snap) => snap.id === 'cursor:active-20')).toBe(false);
+  });
+
+  it('hides a courtyard consultant from the cabin scene, and the reverse', () => {
+    const yardId = Array.from({ length: 40 }, (_, i) => `cursor:yard-${i}`).find((seat) => {
+      const kind = preferredLeisureKind(seat);
+      return kind === 'woodpile' || kind === 'garden';
+    })!;
+    const cabinId = Array.from({ length: 40 }, (_, i) => `cursor:cabin-${i}`).find((seat) => (
+      preferredLeisureKind(seat) === 'hearth'
+    ))!;
+
+    const outdoors = new PresenceDirector();
+    outdoors.sync([{ id: yardId, workState: 'idle', ambientEligible: true }]);
+    const yard = outdoors.step(0, true)[0]!;
+    expect(yard.zone).toBe('yard');
+    expect(visibleInScene('cabin', yard)).toBe(false);
+    expect(visibleInScene('yard', yard)).toBe(true);
+
+    const indoors = new PresenceDirector();
+    indoors.sync([{ id: cabinId, workState: 'idle', ambientEligible: true }]);
+    const cabin = indoors.step(0, true)[0]!;
+    expect(cabin.zone).toBe('cabin');
+    expect(visibleInScene('yard', cabin)).toBe(false);
+    expect(visibleInScene('cabin', cabin)).toBe(true);
+  });
+
+  it('sends an idle consultant out after fifteen quiet minutes and back in through the gate', () => {
+    expect(CONSULTANT_LEASE_MS).toBe(24 * 60 * 60 * 1000);
+    expect(ABSENCE_MS).toBe(15 * 60_000);
+
+    const now = 1_000_000;
+    const director = new PresenceDirector();
+    director.sync([consultant({ workState: 'idle', lastObservedAt: now })]);
+    expect(director.step(0, true, now + ABSENCE_MS - 1)[0]?.mode).toBe('leisure');
+
+    director.sync([consultant({ workState: 'active', ambientEligible: false, lastObservedAt: now + ABSENCE_MS - 1 })]);
+    const returned = director.step(0, true, now + ABSENCE_MS - 1)[0]!;
+    expect(returned.mode).toBe('work');
+    expect(returned.pose).toBe('sit');
+    expect(returned.y).not.toBe(SOUTH_GATE.y);
+
+    director.sync([consultant({ workState: 'idle', lastObservedAt: now })]);
+    director.step(0, true, now);
+    expect(director.step(0, true, now + ABSENCE_MS)).toEqual([]);
+
+    director.sync([consultant({ workState: 'active', ambientEligible: false, lastObservedAt: now + ABSENCE_MS })]);
+    const reentered = director.step(0, false, now + ABSENCE_MS)[0]!;
+    expect(reentered.mode).toBe('arrive');
+    expect(reentered.y).toBe(SOUTH_GATE.y);
+  });
+
+  it('never auto-departs an active or stale consultant, or a parent with an active collaborator', () => {
+    const now = 5_000_000;
+    const quiet = now - ABSENCE_MS - 1;
+
+    const active = new PresenceDirector();
+    active.sync([{ id: 'cursor:busy', workState: 'active', ambientEligible: false, lastObservedAt: quiet }]);
+    expect(active.step(0, true, now).map((snap) => snap.mode)).toEqual(['work']);
+
+    const stale = new PresenceDirector();
+    stale.sync([{ id: 'cursor:old', workState: 'stale', ambientEligible: false, lastObservedAt: quiet }]);
+    expect(stale.step(0, true, now)).toEqual([]);
+
+    const recent = new PresenceDirector();
+    recent.sync([{ id: 'cursor:recent', workState: 'stale', ambientEligible: false, lastObservedAt: now }]);
+    expect(recent.step(0, true, now).map((snap) => snap.mode)).toEqual(['hold']);
+
+    const parent = new PresenceDirector();
+    parent.sync([
+      { id: 'cursor:parent', workState: 'idle', ambientEligible: true, lastObservedAt: now },
+      { id: 'cursor:child', workState: 'active', ambientEligible: false, parentId: 'cursor:parent', lastObservedAt: now },
+    ]);
+    parent.step(0, true, now);
+    const kept = parent.step(0, true, now + ABSENCE_MS).find((snap) => snap.id === 'cursor:parent')!;
+    expect(kept).toBeDefined();
+    expect(kept.mode).not.toBe('depart');
+
+    const launched = new PresenceDirector();
+    launched.sync([
+      { id: 'cursor:parent', workState: 'idle', ambientEligible: true, lastObservedAt: quiet },
+    ]);
+    expect(launched.step(0, true, now)).toEqual([]);
   });
 });

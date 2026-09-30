@@ -1,23 +1,28 @@
 import type { WorkState } from '../../domain/events';
 import {
   DESKS,
+  DOOR_QUEUE,
+  SOUTH_GATE,
   type Facing,
   type Waypoint,
   type Zone,
   type ZonedPoint,
   arrivalPath,
+  gridFor,
   placeConsultant,
   routeTo,
   waypointFor,
 } from './landmarks';
-import { assignLeisure, leisureKey, type LeisureKind } from './leisure';
+import { assignLeisure, cellKey, leisureKey, LEISURE_DEFS, LEISURE_ZONE, type LeisureKind } from './leisure';
 import { BOOT_MS, STANDBY_MS, monitorPhase, type MonitorPhase } from './monitor-phase';
 import { cellAt } from './world-layout';
 
 export const WALK_PX_PER_SEC = 150;
+/** Quiet time after the last work_observed before an idle consultant leaves. Domain lease stays 24h. */
+export const ABSENCE_MS = 15 * 60_000;
 const ARRIVE_EPSILON = 0.5;
 
-export type PresenceMode = 'arrive' | 'work' | 'toLeisure' | 'leisure' | 'toDesk' | 'hold' | 'overflow';
+export type PresenceMode = 'arrive' | 'work' | 'toLeisure' | 'leisure' | 'toDesk' | 'hold' | 'overflow' | 'depart';
 
 type Desired = 'work' | 'leisure' | 'hold';
 
@@ -25,6 +30,10 @@ export interface PresenceConsultant {
   id: string;
   workState: WorkState;
   ambientEligible: boolean;
+  /** Epoch ms of the last work_observed. Absence is measured from this, not from entering leisure. */
+  lastObservedAt?: number;
+  /** Presence id of the parent. Set on a collaborator. */
+  parentId?: string;
 }
 
 export interface PresenceSnapshot {
@@ -61,9 +70,19 @@ interface Agent {
   desk: Waypoint;
   leisure: Waypoint;
   leisureKind: LeisureKind;
+  leisureCol: number;
+  leisureRow: number;
+  /** Door-queue slot, or -1 when this body is not waiting by the door. */
+  queueIndex: number;
+  /** Leisure was full, so the body stays off the canvas instead of joining a standing grid. */
+  benched: boolean;
   moving: boolean;
   bootMs: number;
   leaveMs: number;
+  desired: Desired;
+  lastObservedAt: number | null;
+  /** True while one of this consultant's collaborators is active. */
+  departBlocked: boolean;
 }
 
 /**
@@ -73,40 +92,83 @@ interface Agent {
  */
 export class PresenceDirector {
   private readonly agents = new Map<string, Agent>();
+  /** Ids that walked out the gate and stay gone until work_observed brings them back. */
+  private readonly away = new Set<string>();
 
-  sync(consultants: readonly PresenceConsultant[]): void {
+  sync(consultants: readonly PresenceConsultant[], now = 0): void {
     const live = new Set(consultants.map((c) => c.id));
     for (const id of [...this.agents.keys()]) {
       if (!live.has(id)) this.agents.delete(id);
     }
+    for (const id of [...this.away]) {
+      if (!live.has(id)) this.away.delete(id);
+    }
 
+    const blocked = blockedParents(consultants);
     for (const consultant of consultants) {
       const desired = desiredOf(consultant);
       const existing = this.agents.get(consultant.id);
+      const clock = {
+        lastObservedAt: consultant.lastObservedAt !== undefined ? consultant.lastObservedAt : null,
+        departBlocked: blocked.has(consultant.id),
+      };
       if (!existing) {
-        this.agents.set(consultant.id, spawn(consultant.id, desired, this.freeDesk(consultant.id), this.agents));
+        if (this.away.has(consultant.id) && desired !== 'work') continue;
+        if (desired === 'work') this.away.delete(consultant.id);
+        if (desired !== 'work' && quiet(consultant, now)) {
+          this.away.add(consultant.id);
+          continue;
+        }
+        const desk = desired === 'leisure' ? null : this.freeDesk(consultant.id);
+        const agent = spawn(consultant.id, desired, desk, this.agents, clock);
+        if (!agent) continue;
+        this.agents.set(consultant.id, agent);
+        if (wantsToLeave(agent, now)) beginDepart(agent);
         continue;
       }
+      existing.desired = desired;
+      existing.lastObservedAt = clock.lastObservedAt;
+      existing.departBlocked = clock.departBlocked;
       if (existing.deskIndex < 0 && desired === 'work') {
         const freed = this.freeDesk(consultant.id);
         if (freed !== null) {
           existing.deskIndex = freed;
           existing.desk = DESKS[freed]!;
+          existing.queueIndex = -1;
+          existing.benched = false;
           existing.mode = 'toDesk';
           existing.path = routeTo(existing, existing.desk);
           existing.bootMs = 0;
           continue;
         }
       }
+      if (wantsToLeave(existing, now)) {
+        if (existing.mode !== 'depart') beginDepart(existing);
+        continue;
+      }
+      if (existing.mode === 'depart' && existing.departBlocked && desired === 'leisure') {
+        returnToLeisure(existing);
+        continue;
+      }
       transition(existing, desired, this.agents);
     }
   }
 
-  step(deltaMs: number, reducedMotion: boolean): PresenceSnapshot[] {
+  step(deltaMs: number, reducedMotion: boolean, now = 0): PresenceSnapshot[] {
     const seconds = Math.max(0, deltaMs) / 1000;
     const snapshots: PresenceSnapshot[] = [];
 
     for (const agent of this.agents.values()) {
+      if (agent.desired === 'hold' && absent(agent, now)) {
+        this.away.add(agent.id);
+        this.agents.delete(agent.id);
+        continue;
+      }
+      if (wantsToLeave(agent, now)) {
+        if (agent.mode !== 'depart') beginDepart(agent);
+      } else if (agent.mode === 'depart' && agent.departBlocked && agent.desired === 'leisure') {
+        returnToLeisure(agent);
+      }
       agent.moving = false;
       if (reducedMotion) {
         if (agent.mode === 'toLeisure' && agent.path.length === 0) {
@@ -177,6 +239,17 @@ export class PresenceDirector {
         }
       }
 
+      if (agent.mode === 'depart' && agent.path.length === 0 && !agent.moving) {
+        if (atGate(agent)) {
+          this.away.add(agent.id);
+          this.agents.delete(agent.id);
+          continue;
+        }
+        agent.path = routeTo(agent, SOUTH_GATE);
+      }
+
+      if (agent.benched) continue;
+
       const here = atDesk(agent);
       snapshots.push({
         id: agent.id,
@@ -190,7 +263,7 @@ export class PresenceDirector {
           ? 'sit'
           : 'stand',
         monitor: monitorPhase({
-          mode: agent.mode === 'overflow' ? 'leisure' : agent.mode,
+          mode: seatMode(agent.mode),
           bootMs: agent.bootMs,
           leaveMs: agent.leaveMs,
           atDesk: here,
@@ -230,18 +303,78 @@ function desiredOf(consultant: PresenceConsultant): Desired {
   return 'hold';
 }
 
-function heading(mode: PresenceMode): Desired {
+function heading(mode: PresenceMode): Desired | 'out' {
+  if (mode === 'depart') return 'out';
   if (mode === 'arrive' || mode === 'toDesk' || mode === 'work' || mode === 'overflow') return 'work';
   if (mode === 'toLeisure' || mode === 'leisure') return 'leisure';
   return 'hold';
 }
 
-function spawn(id: string, desired: Desired, deskIndex: number | null, others: Map<string, Agent>): Agent {
+function quiet(consultant: PresenceConsultant, now: number): boolean {
+  return consultant.lastObservedAt !== undefined && now - consultant.lastObservedAt >= ABSENCE_MS;
+}
+
+function absent(agent: Agent, now: number): boolean {
+  if (agent.lastObservedAt === null) return false;
+  return now - agent.lastObservedAt >= ABSENCE_MS;
+}
+
+function wantsToLeave(agent: Agent, now: number): boolean {
+  return agent.desired === 'leisure' && !agent.departBlocked && absent(agent, now);
+}
+
+function beginDepart(agent: Agent): void {
+  agent.mode = 'depart';
+  agent.bootMs = 0;
+  agent.leaveMs = 0;
+  agent.path = routeTo(agent, SOUTH_GATE);
+}
+
+function returnToLeisure(agent: Agent): void {
+  agent.mode = 'toLeisure';
+  agent.leaveMs = 0;
+  agent.bootMs = 0;
+  agent.path = routeTo(agent, agent.leisure);
+}
+
+function blockedParents(consultants: readonly PresenceConsultant[]): Set<string> {
+  const blocked = new Set<string>();
+  for (const consultant of consultants) {
+    if (consultant.parentId !== undefined && consultant.workState === 'active') blocked.add(consultant.parentId);
+  }
+  return blocked;
+}
+
+function seatMode(mode: PresenceMode): 'arrive' | 'work' | 'toLeisure' | 'leisure' | 'toDesk' | 'hold' {
+  if (mode === 'overflow' || mode === 'depart') return 'leisure';
+  return mode;
+}
+
+function atGate(agent: Agent): boolean {
+  return agent.zone === SOUTH_GATE.zone
+    && Math.hypot(agent.x - SOUTH_GATE.x, agent.y - SOUTH_GATE.y) < 12;
+}
+
+function spawn(
+  id: string,
+  desired: Desired,
+  deskIndex: number | null,
+  others: Map<string, Agent>,
+  clock: { lastObservedAt: number | null; departBlocked: boolean },
+): Agent | null {
   const place = placeConsultant(id);
+  const queueIndex = desired === 'work' && deskIndex === null ? claimQueue(others) : -1;
+  if (desired === 'work' && deskIndex === null && queueIndex < 0) return null;
+
+  const needsLeisure = desired === 'leisure' || (desired === 'hold' && deskIndex === null);
+  const slot = needsLeisure ? claimLeisure(id, others) : null;
+  if (needsLeisure && !slot) return null;
+
+  const leisureDef = slot ?? LEISURE_DEFS[0]!;
+  const leisure = waypointFor(leisureDef);
   const seated = deskIndex !== null;
   const desk = DESKS[deskIndex ?? 0]!;
-  const slot = claimLeisure(id, others);
-  const leisure = waypointFor(slot);
+  const queue = queueIndex >= 0 ? DOOR_QUEUE[queueIndex]! : null;
   const agent: Agent = {
     id,
     mode: 'hold',
@@ -253,27 +386,62 @@ function spawn(id: string, desired: Desired, deskIndex: number | null, others: M
     deskIndex: deskIndex ?? -1,
     desk,
     leisure,
-    leisureKind: slot.kind,
+    leisureKind: leisureDef.kind,
+    leisureCol: leisureDef.col,
+    leisureRow: leisureDef.row,
+    queueIndex,
+    benched: false,
     moving: false,
     bootMs: 0,
     leaveMs: 0,
+    desired,
+    lastObservedAt: clock.lastObservedAt,
+    departBlocked: clock.departBlocked,
   };
 
-  if (desired === 'work') {
+  if (queue) {
+    agent.mode = 'overflow';
+    agent.zone = queue.zone;
+    agent.x = queue.x;
+    agent.y = queue.y;
+    agent.facing = 'south';
+  } else if (desired === 'work') {
+    const gate = stepOff(place.gate, others);
     agent.mode = 'arrive';
     agent.zone = place.gate.zone;
-    agent.x = place.gate.x;
-    agent.y = place.gate.y;
+    agent.x = gate.x;
+    agent.y = gate.y;
     agent.facing = 'north';
-    agent.path = arrivalPath(place.gate, seated ? desk : leisure);
+    agent.path = arrivalPath({ ...place.gate, x: gate.x, y: gate.y }, desk);
   } else if (desired === 'leisure') {
+    const at = stepOff(leisure, others);
     agent.mode = 'leisure';
-    agent.x = leisure.x;
-    agent.y = leisure.y;
+    agent.zone = leisure.zone;
+    agent.x = at.x;
+    agent.y = at.y;
     agent.facing = leisure.facing;
   }
 
   return agent;
+}
+
+function claimQueue(others: Map<string, Agent>): number {
+  const taken = new Set([...others.values()].map((agent) => agent.queueIndex).filter((index) => index >= 0));
+  for (let i = 0; i < DOOR_QUEUE.length; i += 1) if (!taken.has(i)) return i;
+  return -1;
+}
+
+function stepOff(point: { x: number; y: number; zone: Zone }, others: Map<string, Agent>): { x: number; y: number } {
+  let x = point.x;
+  let y = point.y;
+  for (let i = 0; i < 8; i += 1) {
+    const crowded = [...others.values()].some((agent) => (
+      agent.zone === point.zone && Math.hypot(agent.x - x, agent.y - y) < 12
+    ));
+    if (!crowded) return { x, y };
+    y -= 16;
+  }
+  return { x: point.x, y: point.y };
 }
 
 function transition(agent: Agent, desired: Desired, others: Map<string, Agent>): void {
@@ -293,8 +461,19 @@ function transition(agent: Agent, desired: Desired, others: Map<string, Agent>):
   }
 
   const slot = claimLeisure(agent.id, others, agent.id);
+  if (!slot) {
+    agent.benched = true;
+    agent.deskIndex = -1;
+    agent.queueIndex = -1;
+    agent.path = [];
+    agent.moving = false;
+    return;
+  }
+  agent.benched = false;
   agent.leisure = waypointFor(slot);
   agent.leisureKind = slot.kind;
+  agent.leisureCol = slot.col;
+  agent.leisureRow = slot.row;
   agent.mode = 'toLeisure';
   agent.bootMs = 0;
   agent.leaveMs = STANDBY_MS;
@@ -325,17 +504,18 @@ function finish(agent: Agent): void {
 function claimLeisure(id: string, others: Map<string, Agent>, except?: string): ReturnType<typeof assignLeisure> {
   const taken = new Set<string>();
   for (const agent of others.values()) {
-    const standingThere = heading(agent.mode) === 'leisure' || agent.deskIndex < 0;
-    if (agent.id === except || !standingThere) continue;
-    const cell = cellAt(agent.leisure.x, agent.leisure.y);
-    taken.add(leisureKey({
-      kind: agent.leisureKind,
-      col: cell.col,
-      row: cell.row,
-      facing: agent.leisure.facing,
-    }));
+    if (agent.id === except) continue;
+    if (agent.deskIndex >= 0 && heading(agent.mode) !== 'leisure') {
+      const seat = cellAt(agent.desk.x, agent.desk.y);
+      taken.add(`${agent.desk.zone}:${seat.col},${seat.row}`);
+    }
+    const usesLeisure = heading(agent.mode) === 'leisure' || (agent.mode === 'hold' && agent.deskIndex < 0);
+    if (!usesLeisure) continue;
+    const def = { kind: agent.leisureKind, col: agent.leisureCol, row: agent.leisureRow };
+    taken.add(leisureKey({ ...def, facing: agent.leisure.facing }));
+    taken.add(cellKey(def));
   }
-  return assignLeisure(id, taken);
+  return assignLeisure(id, taken, (def) => gridFor(LEISURE_ZONE[def.kind]).walkable(def.col, def.row));
 }
 
 function atDesk(agent: Agent): boolean {

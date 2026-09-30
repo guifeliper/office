@@ -1,0 +1,113 @@
+# Mapa do pátio — contrato editável, versão 1.
+#
+# O Guilherme edita aqui caminhos, zonas e props fixos.
+# Autotile, decoração espalhada (girassol, cogumelo, borboleta), colisão e navegação ficam no código.
+# Morango (bloom) não entra no chão.
+#
+# `row` de um prop: número da célula, ou um token resolvido depois da costa:
+#   gate, gate-3, gate+1   — cerca sul
+#   south, south-1         — última célula de terra daquela coluna
+#   lodge                  — fileira da porta do lodge
+#
+# Depois de salvar, gere a prova local (PNG fora do git):
+#   npx vite-node scripts/render-courtyard.ts
+#   docs/design/tiny-farm/courtyard-1x.png
+version: 1
+
+island:
+  cx: 32
+  cy: 34
+  rx: 22
+  ry: 20
+
+lodge:
+  left: 30
+  right: 33
+  top: 28
+  bottom: 32
+  doorCols: [32]
+
+paths:
+  - [32, 58, 32, 33]
+  - [32, 36, 18, 34]
+  - [30, 30, 16, 25]
+  - [32, 30, 32, 22]
+  - [34, 34, 48, 44]
+
+plaza:
+  cx: 32
+  cy: 36
+  r: 2.2
+
+peninsulas:
+  - { cx: 54, cy: 46, rx: 8, ry: 5.5 }
+
+bays:
+  - { cx: 22, cy: 50, r: 3.4 }
+
+islets:
+  - { col: 4, row: 18 }
+  - { col: 6, row: 48 }
+  - { col: 54, row: 8 }
+  - { col: 56, row: 56 }
+
+terraces:
+  - { cx: 46, cy: 28, rx: 5, ry: 3.2 }
+  - { cx: 18, cy: 40, rx: 5, ry: 3 }
+
+northFace:
+  row: 18
+  left: 22
+  right: 44
+  gapLeft: 30
+  gapRight: 33
+
+garden:
+  left: 12
+  right: 24
+  top: 32
+  bottom: 42
+
+gateCols: [31, 32]
+
+props:
+  - { kind: meetingTable, col: 22, row: 30 }
+  - { kind: campfire, col: 16, row: 24 }
+  - { kind: stumpAxe, col: 14, row: 23 }
+  - { kind: woodpile, col: 18, row: 23 }
+  - { kind: gardenBed, col: 14, row: 34 }
+  - { kind: gardenBed, col: 18, row: 34 }
+  - { kind: gardenBed, col: 14, row: 38 }
+  - { kind: gardenBed, col: 18, row: 38 }
+  - { kind: greenhouse, col: 10, row: 36 }
+  - { kind: doghouse, col: 20, row: 28 }
+  - { kind: laundry, col: 26, row: 30 }
+  - { kind: hay, col: 12, row: 26 }
+  - { kind: crate, col: 28, row: 30 }
+  - { kind: cherry, col: 40, row: 26 }
+  - { kind: cherry, col: 12, row: 30 }
+  - { kind: banana, col: 12, row: 45 }
+  - { kind: banana, col: 46, row: 34 }
+  - { kind: fruitTree, col: 42, row: 36 }
+  - { kind: fruitTree, col: 44, row: 32 }
+  - { kind: cherry, col: 48, row: 30 }
+  - { kind: gatehouse, col: 30, row: gate-3 }
+  - { kind: mailbox, col: 34, row: lodge }
+  - { kind: waterfall, col: 30, row: 20 }
+  - { kind: fishman, col: 48, row: 46 }
+  - { kind: lily, col: 3, row: 30 }
+  - { kind: lily, col: 60, row: 24 }
+  - { kind: lily, col: 8, row: 58 }
+  - { kind: canoe, col: 24, row: gate+1 }
+  - { kind: pier, col: 49, row: 51 }
+  - { kind: sandcastle, col: 36, row: south-1 }
+  - { kind: fence, col: 12, row: 32 }
+  - { kind: fence, col: 14, row: 32 }
+  - { kind: fence, col: 12, row: 40 }
+  - { kind: fence, col: 22, row: 32 }
+  - { kind: gateLeft, col: 30, row: gate }
+  - { kind: gateRight, col: 33, row: gate }
+  - { kind: rock, col: 26, row: 18 }
+  - { kind: rock, col: 42, row: 20 }
+  - { kind: rock, col: 14, row: 36 }
+  - { kind: rock, col: 44, row: 40 }

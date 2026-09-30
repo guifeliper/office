@@ -115,6 +115,11 @@ body,
   line-height: 1.4;
 }
 
+.roster-waiting {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
 .roster-row {
   display: flex;
   align-items: center;

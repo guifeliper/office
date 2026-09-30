@@ -76,16 +76,31 @@ export const LEISURE_CAPACITY: Record<LeisureKind, number> = {
   garden: 3,
 };
 
-/** First free slot in the preferred activity; if that is full, the next kind. */
-export function assignLeisure(id: string, taken: ReadonlySet<string>): LeisureDef {
+/**
+ * First free named slot in the preferred activity; if that kind is full, the next kind.
+ * Null when every named slot is taken. There is no standing-grid fallback.
+ */
+export function assignLeisure(
+  id: string,
+  taken: ReadonlySet<string>,
+  fits: (def: LeisureDef) => boolean = () => true,
+): LeisureDef | null {
   const start = LEISURE_KINDS.indexOf(preferredLeisureKind(id));
   for (let offset = 0; offset < LEISURE_KINDS.length; offset += 1) {
     const kind = LEISURE_KINDS[(start + offset) % LEISURE_KINDS.length]!;
-    const free = LEISURE_DEFS.find((def) => def.kind === kind && !taken.has(leisureKey(def)));
+    const free = LEISURE_DEFS.find((def) => def.kind === kind && !slotTaken(def, taken) && fits(def));
     if (free) return free;
   }
-  const pool = LEISURE_DEFS.filter((def) => def.kind === preferredLeisureKind(id));
-  return pool[hash(id) % pool.length]!;
+  return null;
+}
+
+function slotTaken(def: LeisureDef, taken: ReadonlySet<string>): boolean {
+  return taken.has(leisureKey(def)) || taken.has(cellKey(def));
+}
+
+/** Zone and cell, so two activities cannot stand on the same floor tile. */
+export function cellKey(def: Pick<LeisureDef, 'kind' | 'col' | 'row'>): string {
+  return `${LEISURE_ZONE[def.kind]}:${def.col},${def.row}`;
 }
 
 export const LEISURE_HOLD_MS = 900;

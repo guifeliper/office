@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { OfficeProjection } from '../../domain/office-reducer';
-import { rosterRows } from './projection';
+import { rosterRows, waitingCount } from './projection';
 import { OfficeScene } from './scene';
 import { viewFromLatest, type LatestOfficeProps } from './view-from-latest';
 
@@ -10,6 +10,9 @@ export interface OfficeCanvasProps {
 }
 
 export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
+  const roster = rosterRows(projection);
+  const waiting = waitingCount(projection);
+  const visibleCount = roster.reduce((count, row) => count + 1 + row.children.length, 0) + waiting;
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
   const latestRef = useRef<LatestOfficeProps>({ projection, connected });
@@ -71,15 +74,20 @@ export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
         role="img"
         aria-label={
           connected
-            ? projection.consultants.length === 0
+            ? visibleCount === 0
               ? 'Office waiting for Cursor activity'
-              : `Office with ${projection.consultants.length} consultants`
+              : `Office with ${visibleCount} consultants`
             : 'Office disconnected from Cursor observer'
         }
       />
-      {(projection.consultants.length > 0 || projection.collaborators.length > 0) && (
+      {visibleCount > 0 && (
         <ol className="office-roster" data-testid="office-roster">
-          {rosterRows(projection).map((row) => (
+          {waiting > 0 && (
+            <li className="roster-waiting" data-testid="roster-waiting">
+              +{waiting} aguardando
+            </li>
+          )}
+          {roster.map((row) => (
             <li key={row.id}>
               <span className="roster-row">
                 <span className={`roster-mark is-${row.badge}`} />

@@ -210,10 +210,12 @@ write('lily', crop(sheet('Objects/Props/Spring/props water.png'), 0, 34, 16, 16)
 write('hay', crop(sheet('Objects/Exterior/Hay Bales.png'), 0, 0, 32, 16), true);
 write('laundry', crop(sheet('Objects/Exterior/Village Clotheslines.png'), 6, 10, 36, 20), true);
 write('crate', crop(sheet('Objects/Exterior/Box.png'), 50, 77, 14, 19), true);
-write('butterfly', crop(sheet('Animals/Forest/Bugs/Butterfly/Monarch Butterfly.png'), 0, 0, 16, 16), true);
+const monarch = sheet('Animals/Forest/Bugs/Butterfly/Monarch Butterfly.png');
+for (let i = 0; i < 4; i += 1) write('butterfly-' + i, crop(monarch, i * 16, 0, 16, 16), true);
+write('butterfly', crop(monarch, 0, 0, 16, 16), true);
 write('greenhouse', crop(sheet('Objects/Exterior/Houses/Farm Buildings/Greenhouse/Greenhouse.png'), 15, 7, 60, 81), true);
 write('canoe', crop(sheet('Objects/Exterior/Beach/wood canoe.png'), 1, 2, 29, 43), true);
-write('pier', crop(sheet('Objects/Exterior/Fence and Bridge/Bridge Beach.png'), 0, 6, 128, 74), true);
+write('pier', crop(sheet('Objects/Exterior/Fence and Bridge/Bridge Beach.png'), 0, 32, 128, 16), true);
 write('sandcastle', crop(sheet('Objects/Exterior/Beach/Sandcastle.png'), 1, 3, 15, 29), true);
 write('waterfall', crop(sheet('Tileset/Summer Waterfall.png'), 0, 64, 64, 48), true);
 write('doghouse', crop(sheet('Objects/Exterior/Houses/dog house.png'), 7, 2, 34, 42), true);

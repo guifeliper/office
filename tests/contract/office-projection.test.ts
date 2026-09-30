@@ -123,4 +123,11 @@ describe('office projection view model', () => {
     expect(empty.waitingForActivity).toBe(true);
     expect(empty.consultants).toHaveLength(0);
   });
+
+  it('omits stale retained history from the visible roster', () => {
+    const current = consultant({ conversationId: 'current', labelSuffix: 'LIVE', workState: 'active' });
+    const old = consultant({ conversationId: 'old', labelSuffix: 'OLD1', workState: 'stale' });
+    const rows = rosterRows({ consultants: [current, old], collaborators: [] });
+    expect(rows.map((row) => row.label)).toEqual(['Consultant · LIVE']);
+  });
 });

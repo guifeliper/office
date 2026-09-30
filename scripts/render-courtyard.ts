@@ -131,4 +131,14 @@ writePng(path.join(OUT, 'courtyard-1x.png'), scene);
 writePng(path.join(OUT, 'island-hub-1x.png'), scene);
 writePng(path.join(OUT, 'island-rounds/r16-1x.png'), scene);
 writePng(path.join(OUT, 'courtyard-2x.png'), scaleImage(crop(scene, 8 * TILE, 8 * TILE, 32 * TILE, 32 * TILE), 2));
+const half = 32 * TILE;
+const quadrants = [
+  ['nw', 0, 0],
+  ['ne', half, 0],
+  ['sw', 0, half],
+  ['se', half, half],
+] as const;
+for (const [name, x, y] of quadrants) {
+  writePng(path.join(OUT, `courtyard-2x-${name}.png`), scaleImage(crop(scene, x, y, half, half), 2));
+}
 console.warn('wrote', OUT);

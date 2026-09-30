@@ -76,3 +76,6 @@ export const CABIN_FLAME_URLS = [0, 1, 2, 3].map((i) => cabin(`flame-${i}.png`))
 
 /** Six frames from the pack bonfire strip. */
 export const CAMPFIRE_FRAME_URL = [0, 1, 2, 3, 4, 5].map((i) => yard(`bonfire-${i}.png`));
+
+/** Four frames from Monarch Butterfly.png, one wingbeat. */
+export const BUTTERFLY_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`butterfly-${i}.png`));

@@ -7,6 +7,7 @@ import {
   CABIN_PROP_URL,
   CABIN_WALL_URLS,
   CAMPFIRE_FRAME_URL,
+  BUTTERFLY_FRAME_URL,
   CANOPY_VARIANTS,
   PROP_URL,
 } from './art';
@@ -31,6 +32,7 @@ import { COLLABORATOR_SCALE, type OfficeViewModel } from './projection';
 import { WORLD } from './landmarks';
 import { PresenceDirector, type PresenceSnapshot } from './presence';
 import { START_SCENE, nextScene, portalAt, type SceneId } from './scene-state';
+import { visibleInScene } from './scene-visibility';
 
 const TILE = 16;
 const FLAME_MS = 150;
@@ -68,7 +70,10 @@ export class OfficeScene {
   private dollsReady = false;
   private campfireFrames: Texture[] = [];
   private campfireSprites: Sprite[] = [];
+  private butterflySprites: Sprite[] = [];
+  private butterflyFrames: Texture[] = [];
   private campfireMs = 0;
+  private butterflyMs = 0;
   private flameFrames: Texture[] = [];
   private flameSprites: Sprite[] = [];
   private flameMs = 0;
@@ -123,7 +128,9 @@ export class OfficeScene {
       const props = createPropSprites(PROPS, propTextures, { canopies, bushes });
       for (const sprite of props) this.layers.yard.actors.addChild(sprite);
       this.campfireSprites = props.filter((sprite) => sprite.label === 'campfire');
+      this.butterflySprites = props.filter((sprite) => sprite.label === 'butterfly');
       this.campfireFrames = await Promise.all(CAMPFIRE_FRAME_URL.map((url) => loadNearest(url)));
+      this.butterflyFrames = await Promise.all(BUTTERFLY_FRAME_URL.map((url) => loadNearest(url)));
     } catch (error) {
       console.error('Office art failed to load', error);
     }
@@ -138,18 +145,25 @@ export class OfficeScene {
 
   setView(view: OfficeViewModel): void {
     this.view = view;
+    const parentByConversation = new Map(view.consultants.map((consultant) => [consultant.conversationId, consultant.id]));
     this.presence.sync([
       ...view.consultants.map((consultant) => ({
         id: consultant.id,
         workState: consultant.workState,
         ambientEligible: consultant.ambientEligible,
+        lastObservedAt: consultant.lastObservedAt,
       })),
-      ...view.collaborators.map((collaborator) => ({
-        id: collaborator.id,
-        workState: collaborator.workState,
-        ambientEligible: false,
-      })),
-    ]);
+      ...view.collaborators.map((collaborator) => {
+        const parentId = parentByConversation.get(collaborator.parentId);
+        return {
+          id: collaborator.id,
+          workState: collaborator.workState,
+          ambientEligible: false as const,
+          lastObservedAt: collaborator.lastObservedAt,
+          ...(parentId !== undefined ? { parentId } : {}),
+        };
+      }),
+    ], Date.now());
     this.waitingLabel.visible = view.waitingForActivity;
     if (this.dollsReady) this.syncActors();
   }
@@ -383,16 +397,21 @@ export class OfficeScene {
       this.collaborators.set(model.id, new ConsultantSprite(sheets, model, COLLABORATOR_SCALE));
     }
 
-    this.applySnapshots(this.presence.step(0, this.reducedMotion), 0);
+    this.applySnapshots(this.presence.step(0, this.reducedMotion, Date.now()), 0);
   }
 
   private tick(deltaMs: number): void {
     if (!this.view || !this.dollsReady) return;
-    this.applySnapshots(this.presence.step(deltaMs, this.reducedMotion), deltaMs);
+    this.applySnapshots(this.presence.step(deltaMs, this.reducedMotion, Date.now()), deltaMs);
     if (!this.reducedMotion && this.campfireFrames.length > 1) {
       this.campfireMs += deltaMs;
       const frame = this.campfireFrames[Math.floor(this.campfireMs / 180) % 4];
       if (frame) for (const sprite of this.campfireSprites) sprite.texture = frame;
+    }
+    if (!this.reducedMotion && this.butterflyFrames.length > 1) {
+      this.butterflyMs += deltaMs;
+      const frame = this.butterflyFrames[Math.floor(this.butterflyMs / 140) % this.butterflyFrames.length];
+      if (frame) for (const sprite of this.butterflySprites) sprite.texture = frame;
     }
     if (this.flameFrames.length > 0) {
       this.flameMs = this.reducedMotion ? 0 : this.flameMs + deltaMs;
@@ -406,22 +425,39 @@ export class OfficeScene {
     if (!this.view) return;
     const byId = new Map(snaps.map((snap) => [snap.id, snap]));
     const place = (sprite: ConsultantSprite, snap: PresenceSnapshot) => {
-      const actors = this.layers[snap.zone === 'cabin' ? 'cabin' : 'yard'].actors;
+      if (!visibleInScene(this.active, snap)) {
+        sprite.root.visible = false;
+        return;
+      }
+      const actors = this.layers[snap.zone].actors;
       if (sprite.root.parent !== actors) actors.addChild(sprite.root);
+      sprite.root.visible = true;
     };
 
     for (const model of this.view.consultants) {
       const sprite = this.consultants.get(model.id);
       const snap = byId.get(model.id);
-      if (!sprite || !snap) continue;
+      if (!sprite) continue;
+      if (!snap) {
+        sprite.root.visible = false;
+        continue;
+      }
+      sprite.root.visible = true;
       place(sprite, snap);
+      if (!sprite.root.visible) continue;
       sprite.draw(model, snap, deltaMs);
     }
     for (const model of this.view.collaborators) {
       const sprite = this.collaborators.get(model.id);
       const snap = byId.get(model.id);
-      if (!sprite || !snap) continue;
+      if (!sprite) continue;
+      if (!snap) {
+        sprite.root.visible = false;
+        continue;
+      }
+      sprite.root.visible = true;
       place(sprite, snap);
+      if (!sprite.root.visible) continue;
       sprite.draw(model, snap, deltaMs);
     }
   }

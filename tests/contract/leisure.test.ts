@@ -13,8 +13,8 @@ import { PresenceDirector } from '../../src/renderer/office/presence';
 
 describe('leisure assignment', () => {
   it('gives the same id the same activity every time', () => {
-    const first = assignLeisure('cursor:room-a', new Set());
-    const second = assignLeisure('cursor:room-a', new Set());
+    const first = assignLeisure('cursor:room-a', new Set())!;
+    const second = assignLeisure('cursor:room-a', new Set())!;
     expect(first.kind).toBe(second.kind);
     expect(leisureKey(first)).toBe(leisureKey(second));
     expect(preferredLeisureKind('cursor:room-a')).toBe(first.kind);
@@ -32,7 +32,7 @@ describe('leisure assignment', () => {
     const kinds: string[] = [];
     const seats = LEISURE_CAPACITY[preferred];
     for (let i = 0; i < seats + 1; i += 1) {
-      const slot = assignLeisure(`${i}:${conversation}`, taken);
+      const slot = assignLeisure(`${i}:${conversation}`, taken)!;
       kinds.push(slot.kind);
       taken.add(leisureKey(slot));
     }

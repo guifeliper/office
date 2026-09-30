@@ -89,7 +89,7 @@ export function inTrunkShade(col: number, row: number): boolean {
  * grass cell far enough from a path, plus each terrace top. The ground right under a
  * terrace stays light, so the dark ledge reads as a step down.
  */
-const DARK_PATH_CLEARANCE = 3.5;
+const DARK_PATH_CLEARANCE = 8.5;
 const LIGHT_YARD = { left: LODGE.left - 4, right: LODGE.right + 4, top: LODGE.top - 3, bottom: LODGE.bottom + 3 } as const;
 const GARDEN_YARD = { left: 17, right: 29, top: 19, bottom: 31 } as const;
 
@@ -132,10 +132,13 @@ function darkMask(): Uint8Array {
     for (let r = 0; r < ROWS; r += 1) {
       for (let c = 0; c < COLS; c += 1) {
         const i = r * COLS + c;
-        const vertical = on(mask, c, r - 1) || on(mask, c, r + 1);
-        const horizontal = on(mask, c - 1, r) || on(mask, c + 1, r);
-        const around = [on(mask, c, r - 1), on(mask, c + 1, r), on(mask, c, r + 1), on(mask, c - 1, r)].filter(Boolean).length;
-        if (mask[i] === 1 && !(vertical && horizontal)) next[i] = 0;
+        const north = on(mask, c, r - 1);
+        const south = on(mask, c, r + 1);
+        const west = on(mask, c - 1, r);
+        const east = on(mask, c + 1, r);
+        const around = [north, east, south, west].filter(Boolean).length;
+        const thick = (north || south) && (west || east);
+        if (mask[i] === 1 && !thick) next[i] = 0;
         else if (mask[i] === 0 && around >= 3 && darkAllowed(c, r)) next[i] = 1;
         changed ||= next[i] !== mask[i];
       }
@@ -152,8 +155,8 @@ function buildGrassGrid(): (GrassTile | null)[] {
   for (let r = 0; r < ROWS; r += 1) {
     for (let c = 0; c < COLS; c += 1) {
       if (terrainAt(c, r) !== 'grass') continue;
-      if (dark[r * COLS + c] !== 1) grid[r * COLS + c] = 'grass-0';
-      else grid[r * COLS + c] = inTrunkShade(c, r) ? 'grass-dark' : 'grass-1';
+      if (dark[r * COLS + c] === 1) grid[r * COLS + c] = 'grass-1';
+      else grid[r * COLS + c] = inTrunkShade(c, r) ? 'grass-dark' : 'grass-0';
     }
   }
   return grid;
@@ -290,14 +293,32 @@ export function pathTileAt(col: number, row: number): GroundTileName {
   return tiles[mask] ?? 'path-center';
 }
 
-function isDark(col: number, row: number): boolean {
-  const tile = grassTileAt(col, row);
-  return tile === 'grass-1' || tile === 'grass-dark';
+function isMass(col: number, row: number): boolean {
+  return grassTileAt(col, row) === 'grass-1';
+}
+
+/**
+ * Cardinal mask of a dark-mass edge. N=8, E=4, S=2, W=1.
+ * Null on light grass, trunk shade, and the interior of a mass.
+ */
+export function darkEdgeMask(col: number, row: number): number | null {
+  if (!isMass(col, row)) return null;
+  const outside = (dc: number, dr: number) => !isMass(col + dc, row + dr);
+  const mask = (outside(0, -1) ? 8 : 0) | (outside(1, 0) ? 4 : 0) | (outside(0, 1) ? 2 : 0) | (outside(-1, 0) ? 1 : 0);
+  return mask === 0 ? null : mask;
+}
+
+/** The wave tile. Only where the cell and the cell south of it are water, under the cliff wall. */
+export function cliffFootAt(col: number, row: number): boolean {
+  if (terrainAt(col, row) !== 'water' || !cliffRunAt(col, row - 2)) return false;
+  const south = terrainAt(col, row + 1);
+  return south === 'water' || south === 'void';
 }
 
 function paintGrass(col: number, row: number): Int32Array {
-  if (!isDark(col, row)) return copyTile('grass-0');
-  const index = autotileIndex((dc, dr) => !isDark(col + dc, row + dr));
+  const tile = grassTileAt(col, row);
+  if (tile !== 'grass-1') return copyTile(tile === 'grass-dark' ? 'grass-1' : 'grass-0');
+  const index = autotileIndex((dc, dr) => !isMass(col + dc, row + dr));
   if (index === null) return copyTile('grass-1');
   return composite(copyTile('grass-0'), DARK_EDGE[index]!);
 }
@@ -320,7 +341,8 @@ function paintWater(col: number, row: number): Int32Array {
     return composite(copyTile('grass-0'), cap);
   }
   if (cliffRunAt(col, row - 1)) return composite(base, CLIFF_WALL_PX[0]!);
-  if (cliffRunAt(col, row - 2)) return composite(base, CLIFF_FOOT_PX[Math.abs(col) % 2]!);
+  if (cliffFootAt(col, row)) return composite(base, CLIFF_FOOT_PX[Math.abs(col) % 2]!);
+  if (cliffRunAt(col, row - 2)) return composite(base, CLIFF_WALL_PX[0]!);
   return base;
 }
 

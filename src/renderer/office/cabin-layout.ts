@@ -87,6 +87,17 @@ export const COFFEE_CELLS = [
   { col: 3, row: 16 },
 ] as const;
 
+/**
+ * Four standing cells beside the door, off the portal itself.
+ * Extra active consultants wait here. There is no fifth spot.
+ */
+export const DOOR_QUEUE_CELLS = [
+  { col: 8, row: 16 },
+  { col: 9, row: 16 },
+  { col: 14, row: 16 },
+  { col: 15, row: 16 },
+] as const;
+
 /** The portal. Walkable; clicking it returns to the yard. */
 export const CABIN_DOOR = { col: 11, row: 17, span: 2 } as const;
 export const CABIN_DOOR_CELL = { col: CABIN_DOOR.col, row: CABIN_DOOR.row } as const;

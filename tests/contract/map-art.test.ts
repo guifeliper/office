@@ -159,7 +159,7 @@ describe('field density', () => {
     expect(TREES.length).toBeGreaterThanOrEqual(24);
     expect(TREES.length).toBeLessThanOrEqual(32);
     expect(BUSHES.length).toBeGreaterThanOrEqual(24);
-    expect(BUSHES.length).toBeLessThanOrEqual(48);
+    expect(BUSHES.length).toBeLessThanOrEqual(32);
     let onTheStep = 0;
     for (const bush of BUSHES) {
       expect(terrainAt(bush.col, bush.row)).toBe('grass');
@@ -168,7 +168,7 @@ describe('field density', () => {
       const onWater = [[0, -1], [1, 0], [0, 1], [-1, 0]].some(([dc, dr]) => terrainAt(bush.col + dc!, bush.row + dr!) === 'water');
       if (onWater) onTheStep += 1;
     }
-    expect(onTheStep).toBeGreaterThanOrEqual(12);
+    expect(onTheStep).toBeGreaterThanOrEqual(8);
     expect(PROPS.some((p) => (p.kind as string) === 'flowerTuft' || (p.kind as string) === 'pingpong')).toBe(false);
   });
 

@@ -4,6 +4,7 @@ import {
   CABIN_COLS,
   CABIN_DESKS,
   CABIN_DOOR_CELL,
+  DOOR_QUEUE_CELLS,
   CABIN_PROPS,
   CABIN_ROWS,
   cabinBlockedCells,
@@ -77,6 +78,9 @@ export const LODGE_DOOR: Waypoint = at({ col: LODGE.doorCols[0], row: LODGE.bott
 /** The cabin end of the portal. */
 export const CABIN_DOOR: Waypoint = at(CABIN_DOOR_CELL, 'north', 'cabin');
 
+/** At most four active consultants stand here when every desk is taken. */
+export const DOOR_QUEUE: readonly Waypoint[] = DOOR_QUEUE_CELLS.map((cell) => at(cell, 'south', 'cabin'));
+
 function doorOf(zone: Zone): Waypoint {
   return zone === 'cabin' ? CABIN_DOOR : LODGE_DOOR;
 }
@@ -116,7 +120,7 @@ export interface Placement {
 export function placeConsultant(id: string): Placement {
   const h = hashId(id);
   const deskIndex = h % DESKS.length;
-  const leisure = waypointFor(assignLeisure(id, new Set()));
+  const leisure = waypointFor(assignLeisure(id, new Set()) ?? LEISURE_DEFS[0]!);
   const gateCol = GATE_COLS[(h >>> 16) % GATE_COLS.length]!;
   return {
     deskIndex,
