@@ -115,6 +115,8 @@ function belowTerrace(col: number, row: number): boolean {
 
 function darkAllowed(col: number, row: number): boolean {
   if (terrainAt(col, row) !== 'grass' || cliffRunAt(col, row + 1) || belowTerrace(col, row)) return false;
+  // The south shelf is one lawn down to the bank. A dark mass there reads as a rectangle.
+  if (row >= 48) return false;
   if (autotileIndex((dc, dr) => openWater(col + dc, row + dr)) !== null) return false;
   return !inBox(col, row, LIGHT_YARD) && !inBox(col, row, GARDEN_YARD);
 }
@@ -186,7 +188,7 @@ export function groundDecalAt(col: number, row: number): Int32Array | null {
   const pick = (list: readonly Int32Array[]) => list[cellHash(row + 101, col + 7) % list.length]!;
   const cardinals = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
   if (terrain === 'grass') {
-    if (roll >= 0.16 || !plainGrass(col, row)) return null;
+    if (roll >= 0.28 || !plainGrass(col, row)) return null;
     const tone = grassTileAt(col, row) === 'grass-0';
     const same = cardinals.every(([dc, dr]) => plainGrass(col + dc, row + dr) && (grassTileAt(col + dc, row + dr) === 'grass-0') === tone);
     return same ? pick(LAWN_DECALS) : null;
