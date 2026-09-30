@@ -244,6 +244,12 @@ Não existe pasta de leitura, de livro na mão, nem de caneca. Caneca é prop em
 
 Para ocioso dentro da sala o pack oferece: sentar (a mesa), dormir (a cama), e o gato. Não oferece ler nem beber.
 
+### Flauta
+
+`Character/Character/PNG/22. Flute/` mede 576×32. 576 / 32 = 18 frames. 18 não divide por 4, então a tira não é sul / norte / leste / oeste. São três grupos de 6 frames; a quarta face não está na pasta. Oeste não é espelhado. Os olhos dessa pasta são só `Green.png` — `resolveLayer` cobriria a cor, mas o recorte das faces é o motivo de não entrar no cast.
+
+Dormir (`19. Sleep`) também não tem quatro faces (192×32, 6 frames) e não tem pasta `Clothers`. A tira entra linear: pele, cabelo e olhos verdes. O cochilo usa os frames 2 e 3 (deitado de lado). Os frames 4 e 5 são o outro lado do mesmo pose; não são espelho nosso.
+
 ## O que continua custom
 
 - Tela do monitor em três estados: ligada, desligada, digitando. O pack tem o gabinete e um desenho fixo na tela.

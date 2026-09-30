@@ -21,6 +21,7 @@ import { createPropSprites, type PropTextures } from './prop-view';
 import { GROUND_DEPTH } from './depth';
 import { PROPS, PROP_SPECS, lodgeShellSolid, propBase, terrainAt, type PropKind } from './world-layout';
 import { butterflyFlights, butterflyPose, type ButterflyFlight } from './butterflies';
+import { ErrandBoard } from './errand-board';
 import { claimBeds, gardenAction, initialGarden, stepGarden, type GardenState } from './garden-cycle';
 import { fishFrame, initialFish, stepFish, type FishState } from './fish-cycle';
 import { lilyFrame, lilyOffsetY } from './lily-motion';
@@ -91,6 +92,7 @@ export class OfficeScene {
   private readonly cropSprites = new Map<string, Sprite>();
   private readonly beds = new Map<string, GardenState>();
   private readonly fishing = new Map<string, FishState>();
+  private readonly errands = new ErrandBoard();
   private ambientMs = 0;
   private flameFrames: Texture[] = [];
   private flameSprites: Sprite[] = [];
@@ -428,8 +430,18 @@ export class OfficeScene {
 
   private tick(deltaMs: number): void {
     if (!this.view || !this.dollsReady) return;
+    const butterflies = this.butterflyPoints();
+    this.presence.setAims(this.errands.aims([...this.lastSnaps.values()], this.reducedMotion, butterflies));
     const snaps = this.presence.step(deltaMs, this.reducedMotion, Date.now());
     this.lastSnaps = new Map(snaps.map((snap) => [snap.id, snap]));
+    this.errands.advance({
+      snaps,
+      deltaMs,
+      reduced: this.reducedMotion,
+      now: Date.now(),
+      butterflies,
+      blocked: (x, y) => yardPointBlocked(x, y),
+    });
     this.stepGarden(deltaMs);
     this.stepFishing(deltaMs);
     this.applySnapshots(snaps, deltaMs);
@@ -471,7 +483,7 @@ export class OfficeScene {
       sprite.root.visible = true;
       place(sprite, snap);
       if (!sprite.root.visible) continue;
-      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap));
+      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap), this.errands.pose(model.id, !this.reducedMotion));
     }
     for (const model of this.view.collaborators) {
       const sprite = this.collaborators.get(model.id);
@@ -484,7 +496,7 @@ export class OfficeScene {
       sprite.root.visible = true;
       place(sprite, snap);
       if (!sprite.root.visible) continue;
-      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap));
+      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap), this.errands.pose(model.id, !this.reducedMotion));
     }
   }
 
@@ -502,6 +514,10 @@ export class OfficeScene {
     const state = this.fishing.get(id);
     if (!state) return null;
     return { phase: state.phase, frame: fishFrame(state.phase, state.phaseMs), play: !this.reducedMotion };
+  }
+
+  private butterflyPoints(): { x: number; y: number }[] {
+    return this.flights.map((flight, index) => butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion));
   }
 
   private stepFishing(deltaMs: number): void {
@@ -557,12 +573,7 @@ export class OfficeScene {
     const perches = PROPS
       .filter((prop) => prop.kind === 'flower' || prop.kind === 'bush')
       .map((prop) => propBase(prop));
-    const blocked = (x: number, y: number) => {
-      const col = Math.floor(x / TILE);
-      const row = Math.floor(y / TILE);
-      if (lodgeShellSolid(col, row) || terrainAt(col, row) !== 'grass') return true;
-      return PROPS.some((prop) => PROP_SPECS[prop.kind].blocks.some(([dx, dy]) => prop.col + dx === col && prop.row + dy === row));
-    };
+    const blocked = (x: number, y: number) => yardPointBlocked(x, y);
     this.flights = butterflyFlights(perches, blocked);
     const frame = this.butterflyFrames[0];
     if (!frame) return;
@@ -602,7 +613,9 @@ export class OfficeScene {
     this.flights.forEach((flight, index) => {
       const sprite = this.butterflySprites[index];
       if (!sprite) return;
-      const pose = butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion);
+      const route = butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion);
+      const fled = this.errands.butterflyAt(index);
+      const pose = fled ? { ...route, x: fled.x, y: fled.y } : route;
       sprite.position.set(Math.round(pose.x), Math.round(pose.y));
       sprite.zIndex = pose.y;
       const frame = this.butterflyFrames[pose.frame];
@@ -627,6 +640,13 @@ const WHEEL_STEP = 80;
 
 function gardenBeds(): { col: number; row: number }[] {
   return PROPS.filter((prop) => prop.kind === 'gardenBed').map((prop) => ({ col: prop.col, row: prop.row }));
+}
+
+function yardPointBlocked(x: number, y: number): boolean {
+  const col = Math.floor(x / TILE);
+  const row = Math.floor(y / TILE);
+  if (lodgeShellSolid(col, row) || terrainAt(col, row) !== 'grass') return true;
+  return PROPS.some((prop) => PROP_SPECS[prop.kind].blocks.some(([dx, dy]) => prop.col + dx === col && prop.row + dy === row));
 }
 
 function makeLayer(size: { width: number; height: number }): SceneLayer {

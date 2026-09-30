@@ -61,6 +61,12 @@ function slice(sheet: Texture): CharacterSheets {
       reel: frames('fishReel', facing),
       catch: frames('fishCatch', facing),
     })),
+    carryIdle: byFacing((facing) => frames('carryIdle', facing)),
+    carryWalk: byFacing((facing) => frames('carryWalk', facing)),
+    carryPick: byFacing((facing) => frames('carryPick', facing)),
+    net: byFacing((facing) => frames('net', facing)),
+    pet: byFacing((facing) => frames('pet', facing)),
+    sleep: frames('sleep', 'south'),
     leisure: Object.fromEntries(
       LEISURE_KINDS.filter((kind) => kind !== 'fishing').map((kind) => [kind, byFacing((facing) => frames(LEISURE_ACTION[kind], facing))]),
     ) as CharacterSheets['leisure'],
@@ -75,5 +81,11 @@ function allTextures(look: CharacterSheets): Texture[] {
     ...Object.values(look.water).flat(),
     ...Object.values(look.fishing).flatMap((phases) => Object.values(phases).flat()),
     ...Object.values(look.leisure).flatMap((byFacing) => Object.values(byFacing).flat()),
+    ...Object.values(look.carryIdle).flat(),
+    ...Object.values(look.carryWalk).flat(),
+    ...Object.values(look.carryPick).flat(),
+    ...Object.values(look.net).flat(),
+    ...Object.values(look.pet).flat(),
+    ...look.sleep,
   ];
 }

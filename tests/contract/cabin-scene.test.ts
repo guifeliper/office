@@ -16,7 +16,7 @@ import {
 import { lodgeRect } from '../../src/renderer/office/world-layout';
 import { DESKS } from '../../src/renderer/office/landmarks';
 import { FOOT_ANCHOR_Y } from '../../src/renderer/office/consultant-view';
-import { castFrameRect, LOOK_COUNT } from '../../src/renderer/office/tiny-farm-cast';
+import { CAST_ROW, castFrameRect, LOOK_COUNT } from '../../src/renderer/office/tiny-farm-cast';
 import { readPng, stats, createImage, type Rgba } from '../../scripts/png';
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -97,10 +97,11 @@ describe('Tiny Farm sit anchor', () => {
     expect(SEAT_DROP).toBe(CAST_CELL - CAST_FEET_ROW);
   });
 
-  it('ships 16 composed looks, with the fishing cycle after the six base rows', () => {
+  it('ships 16 composed looks, including carrying, the net, petting, and sleep', () => {
     for (let i = 0; i < LOOK_COUNT; i += 1) {
       const img = readPng(path.join(ART, `cast/look-${String(i).padStart(2, '0')}.png`));
-      expect([img.width, img.height]).toEqual([1920, 352]);
+      const rows = Math.max(...Object.values(CAST_ROW)) + 1;
+      expect([img.width, img.height]).toEqual([1920, rows * CAST_CELL]);
       expect(stats(img).alphaClean).toBe(true);
     }
   });
