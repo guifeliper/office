@@ -4,6 +4,7 @@
  * Autotiles, scatter decorations, collision (`PROP_SPECS`), and nav stay here.
  * Layout follows `docs/design/cursor-office-map-sketch-v2.png`; nothing here reads that image.
  */
+import { LEISURE_DEFS } from './leisure';
 import yardMapSource from './yard-map.yaml?raw';
 import { parseYardMap, type YardMap, type YardPropRow } from './yard-map';
 
@@ -49,7 +50,14 @@ export type PropKind =
   | 'pier'
   | 'sandcastle'
   | 'waterfall'
-  | 'fishman';
+  | 'fishman'
+  | 'pine'
+  | 'palm'
+  | 'bench'
+  | 'stall'
+  | 'barrel'
+  | 'starfish'
+  | 'reed';
 
 /**
  * - `none`: base sprite only.
@@ -83,7 +91,7 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   gatehouse: { span: 4, blocks: [[0, 0], [3, 0], [0, -1], [3, -1]], foreground: 'overhead' },
   // The door is the passage through the lodge's front wall.
   lodgeDoor: { span: 2, blocks: [], foreground: 'none' },
-  fence: { span: 2, blocks: row(2), foreground: 'none' },
+  fence: { span: 3, blocks: row(3), foreground: 'none' },
   // Trunk is solid; the canopy never blocks.
   tree: { span: 1, blocks: row(1), foreground: 'canopy' },
   rock: { span: 2, blocks: row(2), foreground: 'none' },
@@ -108,11 +116,21 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   butterfly: { span: 1, blocks: [], foreground: 'none' },
   greenhouse: { span: 4, blocks: [...row(4), ...row(4, -1)], foreground: 'none' },
   canoe: { span: 2, blocks: [], foreground: 'none' },
-  pier: { span: 8, blocks: [], foreground: 'none' },
+  pier: { span: 3, blocks: [], foreground: 'none' },
   sandcastle: { span: 1, blocks: row(1), foreground: 'none' },
   waterfall: { span: 4, blocks: [], foreground: 'none' },
   /** Left half of Fishman house.png. Five tiles wide, solid so the pier path goes around it. */
   fishman: { span: 5, blocks: [...row(5), ...row(5, -1), ...row(5, -2)], foreground: 'none' },
+  /** Small summer pine. The sheet's large pines are snow or dead. */
+  pine: { span: 1, blocks: row(1), foreground: 'none' },
+  /** One palm cut from the hammock pair. */
+  palm: { span: 5, blocks: row(1), foreground: 'none' },
+  bench: { span: 2, blocks: row(2), foreground: 'none' },
+  /** Vendor stand. The striped market stall is not in the pack. */
+  stall: { span: 2, blocks: [...row(2), ...row(2, -1)], foreground: 'none' },
+  barrel: { span: 1, blocks: row(1), foreground: 'none' },
+  starfish: { span: 1, blocks: [], foreground: 'none' },
+  reed: { span: 1, blocks: [], foreground: 'none' },
 };
 
 /** Checked-in yard contract. Collision and scatter do not read this for their rules. */
@@ -176,15 +194,25 @@ function inIslandEllipse(col: number, rowIndex: number): boolean {
 /** Coast features laid over the ellipse, so the outline reads as an island, not a lozenge. */
 const PENINSULAS = YARD_MAP.peninsulas;
 const BAYS = YARD_MAP.bays;
-/** Top-left cell of each 3×2 islet. Each carries one pack stone. */
+/** Top-left cell of each corner islet. Spans vary so the pads are not one stamp. */
 export const ISLETS: readonly Cell[] = YARD_MAP.islets;
+const ISLET_SPAN: readonly { w: number; h: number }[] = [
+  { w: 2, h: 2 },
+  { w: 3, h: 1 },
+  { w: 2, h: 2 },
+  { w: 4, h: 2 },
+  { w: 2, h: 1 },
+];
 
 function inCoastFeature(col: number, rowIndex: number): boolean | null {
   const x = col + 0.5;
   const y = rowIndex + 0.5;
   if (BAYS.some((b) => Math.hypot(x - b.cx, y - b.cy) <= b.r)) return false;
   if (PENINSULAS.some((p) => ((x - p.cx) / p.rx) ** 2 + ((y - p.cy) / p.ry) ** 2 <= 1)) return true;
-  if (ISLETS.some((i) => col >= i.col && col <= i.col + 2 && rowIndex >= i.row && rowIndex <= i.row + 1)) return true;
+  if (ISLETS.some((islet, index) => {
+    const span = ISLET_SPAN[index] ?? { w: 2, h: 2 };
+    return col >= islet.col && col < islet.col + span.w && rowIndex >= islet.row && rowIndex < islet.row + span.h;
+  })) return true;
   return null;
 }
 
@@ -224,6 +252,29 @@ const LAND_MASK = (() => {
     }
     grid.set(next);
   }
+  const seen = new Uint8Array(COLS * ROWS);
+  const stack: number[] = [ISLAND.cy * COLS + ISLAND.cx];
+  while (stack.length > 0) {
+    const index = stack.pop()!;
+    if (seen[index] || grid[index] !== 1) continue;
+    seen[index] = 1;
+    const c = index % COLS;
+    const r = Math.floor(index / COLS);
+    if (c > 0) stack.push(index - 1);
+    if (c < COLS - 1) stack.push(index + 1);
+    if (r > 0) stack.push(index - COLS);
+    if (r < ROWS - 1) stack.push(index + COLS);
+  }
+  for (let index = 0; index < grid.length; index += 1) {
+    if (grid[index] !== 1 || seen[index]) continue;
+    const c = index % COLS;
+    const r = Math.floor(index / COLS);
+    const kept = ISLETS.some((islet, isletIndex) => {
+      const span = ISLET_SPAN[isletIndex] ?? { w: 2, h: 2 };
+      return c >= islet.col && c < islet.col + span.w && r >= islet.row && r < islet.row + span.h;
+    });
+    if (!kept) grid[index] = 0;
+  }
   return grid;
 })();
 
@@ -261,11 +312,14 @@ export function elevationAt(col: number, rowIndex: number): 0 | 1 | 2 {
 const NORTH_FACE = YARD_MAP.northFace;
 
 function inNorthPool(col: number, rowIndex: number): boolean {
-  if (rowIndex < NORTH_FACE.row || rowIndex > NORTH_FACE.row + 3) return false;
-  if (col < NORTH_FACE.left || col > NORTH_FACE.right) return false;
+  if (rowIndex < NORTH_FACE.row || rowIndex > NORTH_FACE.row + 4) return false;
   if (!inIsland(col, rowIndex)) return false;
   if (col >= LODGE.left && col <= LODGE.right && rowIndex >= LODGE.top) return false;
-  return true;
+  const mid = (NORTH_FACE.left + NORTH_FACE.right) / 2;
+  const half = (NORTH_FACE.right - NORTH_FACE.left) / 2;
+  const dx = Math.abs(col + 0.5 - mid);
+  if (rowIndex <= NORTH_FACE.row + 3) return col >= NORTH_FACE.left && col <= NORTH_FACE.right && dx <= half;
+  return dx <= half * 0.48;
 }
 
 /**
@@ -311,7 +365,7 @@ function onPath(col: number, rowIndex: number): boolean {
   if (lodgeShellSolid(col, rowIndex)) return false;
   if (rowIndex === LODGE.bottom && col === LODGE.doorCols[0]) return true;
   const d = pathDistance(col, rowIndex);
-  if (d <= 0.65) return true;
+  if (d <= 0.7) return true;
   if (d > PATH_HALF_WIDTH) return false;
   return cellHash(col, rowIndex) % 2 === 0;
 }
@@ -327,16 +381,11 @@ export function lodgeShellSolid(col: number, rowIndex: number): boolean {
 }
 
 /**
- * South cove. Deeper in the middle, a thin sand lip at the sides, so the beach is not a rectangle.
+ * The south shore is grass down to the water. The pack bank draws the brown lip.
+ * The old sand beach is gone: Guilherme asked for the grass coast.
  */
-function inBeach(col: number, rowIndex: number): boolean {
-  if (!inIsland(col, rowIndex) || rowIndex < ISLAND.cy + 10) return false;
-  const along = Math.abs(col - ISLAND.cx);
-  if (along > 10) return false;
-  const edge = southEdge(col);
-  if (edge < 0) return false;
-  const depth = 3 + Math.round(2 * (1 - along / 10));
-  return rowIndex >= edge - depth;
+function inBeach(_col: number, _rowIndex: number): boolean {
+  return false;
 }
 
 export function terrainAt(col: number, rowIndex: number): Terrain {
@@ -377,8 +426,8 @@ export function bushVariant(col: number, row: number): number {
 }
 
 const BASE_TREES: readonly Cell[] = [
-  { col: 24, row: 16 }, { col: 40, row: 16 }, { col: 20, row: 22 }, { col: 44, row: 22 },
-  { col: 22, row: 36 }, { col: 42, row: 38 }, { col: 26, row: 42 }, { col: 38, row: 20 },
+  { col: 28, row: 14 }, { col: 38, row: 14 }, { col: 18, row: 18 }, { col: 46, row: 22 },
+  { col: 16, row: 26 }, { col: 50, row: 36 }, { col: 22, row: 46 }, { col: 42, row: 48 },
 ].filter((cell) => terrainAt(cell.col, cell.row) === 'grass');
 
 /** Hand-placed props from the yard map. Scatter must keep clear of their cells. */
@@ -388,11 +437,27 @@ const FIXED: readonly PropPlacement[] = [
     col: prop.col,
     row: resolvePropRow(prop.col, prop.row),
   })),
-  ...ISLETS.map((cell) => ({ kind: 'rock' as const, col: cell.col, row: cell.row + 1 })),
-].filter((prop) => prop.kind !== 'rock' || onIsletStone(prop) || terrainAt(prop.col, prop.row) === 'grass');
+  ...ISLETS.map((cell, index) => {
+    const kind: PropKind = index % 2 === 0 ? 'rock' : 'shoreRock';
+    return { kind, col: cell.col + (index % 2), row: cell.row };
+  }),
+].filter((prop) => {
+  const ground = terrainAt(prop.col, prop.row);
+  if (prop.kind === 'shoreRock') return ground === 'grass';
+  if (prop.kind !== 'rock') return true;
+  if (onIsletStone(prop)) return ground === 'grass';
+  return ground === 'grass' || ground === 'sand';
+});
 
 function onIsletStone(prop: PropPlacement): boolean {
-  return ISLETS.some((cell) => prop.col === cell.col && prop.row === cell.row + 1);
+  return ISLETS.some((cell) => prop.col === cell.col && prop.row === cell.row);
+}
+
+function onIsletPad(col: number, row: number): boolean {
+  return ISLETS.some((islet, index) => {
+    const span = ISLET_SPAN[index] ?? { w: 2, h: 2 };
+    return col >= islet.col && col < islet.col + span.w && row >= islet.row && row < islet.row + span.h;
+  });
 }
 
 /** `gate` / `south` / `lodge`, optional `+N` or `-N`, resolved once the coast exists. */
@@ -417,11 +482,10 @@ const FIXED_CLEARANCE: ReadonlySet<string> = (() => {
   return out;
 })();
 
-/** Leisure standing cells (see landmarks.ts). Scatter keeps off them. */
-const LEISURE_CELLS: readonly Cell[] = [
-  { col: 14, row: 24 }, { col: 18, row: 24 },
-  { col: 17, row: 35 }, { col: 17, row: 36 }, { col: 17, row: 39 },
-];
+/** Leisure standing cells. Scatter keeps off them. */
+const LEISURE_CELLS: readonly Cell[] = LEISURE_DEFS.filter(
+  (def) => def.kind === 'woodpile' || def.kind === 'garden',
+);
 
 /** Arrival line: the south path, from the house down to the gate. */
 function inGateCorridor(col: number, rowIndex: number): boolean {
@@ -438,13 +502,13 @@ function scatterOk(col: number, rowIndex: number): boolean {
 
 const chebyshev = (a: Cell, b: Cell) => Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
 
-const TREE_TARGET = 28;
+const TREE_TARGET = 32;
 
-/** A canopy is ~3 tiles wide: keep it off the lodge and two cells clear of hand-placed props. */
+/** A canopy is ~3 tiles wide. Keep the trunk off every fixed prop, including ones that do not block. */
 function treeRoom(cell: Cell): boolean {
   const { left, right, top, bottom } = LODGE;
   if (cell.col >= left - 3 && cell.col <= right + 3 && cell.row >= top - 2 && cell.row <= bottom + 3) return false;
-  return !FIXED.some((p) => blockedCells(p).some((b) => chebyshev(b, cell) <= 2));
+  return !FIXED.some((p) => propFootprint(p).some((b) => chebyshev(b, cell) <= 2));
 }
 
 /**
@@ -454,7 +518,7 @@ function treeRoom(cell: Cell): boolean {
 function rimTrees(existing: readonly Cell[]): Cell[] {
   const out: Cell[] = [];
   const all = [...existing];
-  for (const ring of [0.72, 0.58, 0.46, 0.34]) {
+  for (const ring of [0.5, 0.86, 0.74, 0.62]) {
     const samples = Math.round(56 * ring);
     for (let i = 0; i < samples && all.length < TREE_TARGET; i += 1) {
       const a = (i / samples) * Math.PI * 2;
@@ -475,16 +539,28 @@ function rimTrees(existing: readonly Cell[]): Cell[] {
 
 function tryTree(cell: Cell, all: Cell[], out: Cell[]): void {
   if (all.length >= TREE_TARGET) return;
-  if (cell.row > ISLAND.cy + 10 && Math.abs(cell.col - ISLAND.cx) < 8) return;
-  if (cell.col >= 14 && cell.col <= 20 && cell.row >= 22 && cell.row <= 26) return;
+  if (cell.row > ISLAND.cy + 12 && Math.abs(cell.col - ISLAND.cx) < 12) return;
+  if (cell.col >= 14 && cell.col <= 19 && cell.row >= 27 && cell.row <= 32) return;
   if (terrainAt(cell.col, cell.row) !== 'grass' || !scatterOk(cell.col, cell.row) || !treeRoom(cell)) return;
-  if (pathDistance(cell.col, cell.row) <= 2.2) return;
-  if (all.some((t) => chebyshev(t, cell) < 3)) return;
+  if (treeFootprint(cell).filter((part) => {
+    const ground = terrainAt(part.col, part.row);
+    return ground === 'water' || ground === 'void';
+  }).length >= 7) return;
+  if (pathDistance(cell.col, cell.row) <= 1.15) return;
+  if (all.some((t) => chebyshev(t, cell) < 4)) return;
   all.push(cell);
   out.push(cell);
 }
 
-export const TREES: readonly Cell[] = [...BASE_TREES, ...rimTrees(BASE_TREES)];
+export const TREES: readonly Cell[] = (() => {
+  const base: Cell[] = [];
+  for (const cell of BASE_TREES) {
+    if (!treeRoom(cell)) continue;
+    if (base.some((t) => chebyshev(t, cell) < 4)) continue;
+    base.push(cell);
+  }
+  return [...base, ...rimTrees(base)];
+})();
 
 const GARDEN = YARD_MAP.garden;
 
@@ -506,6 +582,8 @@ function bushes(): Cell[] {
   for (let r = 0; r < ROWS && rim.length < RIM_BUSHES; r += 1) {
     for (let c = 0; c < COLS && rim.length < RIM_BUSHES; c += 1) {
       if (terrainAt(c, r) !== 'grass' || !touchesWater(c, r) || !scatterOk(c, r) || underCanopy(c, r)) continue;
+      const landNeighbours = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([dc, dr]) => terrainAt(c + dc!, r + dr!) === 'grass').length;
+      if (landNeighbours < 2) continue;
       if (TREES.some((t) => chebyshev(t, { col: c, row: r }) <= 1)) continue;
       if (r > ISLAND.cy + 10 && Math.abs(c - ISLAND.cx) < 8) continue;
       if (pathDistance(c, r) <= 2.2) continue;
@@ -555,12 +633,20 @@ export const BUSHES: readonly Cell[] = bushes();
  * Each cell is checked against the path half-width when the layout is built.
  */
 const LANTERNS: readonly Cell[] = [
-  { col: 29, row: 40 },
-  { col: 35, row: 40 },
-  { col: 29, row: 46 },
-  { col: 35, row: 46 },
-  { col: 28, row: 34 },
-].filter((c) => terrainAt(c.col, c.row) === 'grass' && pathDistance(c.col, c.row) > 1.5 && !BUSHES.some((b) => b.col === c.col && b.row === c.row));
+  { col: 28, row: 35 },
+  { col: 35, row: 34 },
+  { col: 42, row: 34 },
+  { col: 46, row: 39 },
+  { col: 24, row: 33 },
+  { col: 38, row: 28 },
+  { col: 33, row: 24 },
+  { col: 21, row: 36 },
+].filter((c) => {
+  if (terrainAt(c.col, c.row) !== 'grass' || pathDistance(c.col, c.row) <= 1.05) return false;
+  if (BUSHES.some((b) => b.col === c.col && b.row === c.row)) return false;
+  if (TREES.some((t) => treeFootprint(t).some((cell) => cell.col === c.col && cell.row === c.row))) return false;
+  return !FIXED.some((p) => propFootprint(p).some((cell) => cell.col === c.col && cell.row === c.row));
+});
 
 const SHORE_ROCK_CAP = 22;
 
@@ -610,8 +696,26 @@ export const LODGE_ROOF: PropPlacement = { kind: 'lodgeRoof', col: LODGE.left, r
 /** Opaque size of `lodge-house.png`, the tight crop of Houses/10.png. */
 const LODGE_SPRITE = { w: 72, h: 95 } as const;
 
-/** Sunflower and mushroom. Strawberries stay out. Butterflies are placed apart, not as ground stickers. */
-const DECOR_KINDS = ['flower', 'mushroom'] as const;
+/** Sunflowers outnumber mushrooms. Strawberries stay out. Tall sprites keep the roof clear. */
+function underTallSprite(col: number, row: number): boolean {
+  const rise: Partial<Record<PropKind, number>> = {
+    fishman: 6,
+    greenhouse: 5,
+    doghouse: 3,
+    stall: 3,
+    cherry: 3,
+    fruitTree: 3,
+    palm: 3,
+    pine: 2,
+  };
+  for (const prop of [...FIXED, LODGE_ROOF]) {
+    const up = prop.kind === 'lodgeRoof' ? 6 : rise[prop.kind];
+    if (!up) continue;
+    const span = PROP_SPECS[prop.kind].span;
+    if (col >= prop.col - 1 && col < prop.col + span + 1 && row <= prop.row + 1 && row >= prop.row - up) return true;
+  }
+  return false;
+}
 
 /** Sparse accents: one small sprite in most 5×5 patches of open grass or sand. */
 function decorations(): PropPlacement[] {
@@ -644,37 +748,19 @@ function decorations(): PropPlacement[] {
         for (let c = bc; c < bc + 5 && c < COLS; c += 1) {
           if (taken.has(`${c},${r}`)) continue;
           const ground = terrainAt(c, r);
-          if (ground !== 'grass' && ground !== 'sand') continue;
-          if (!scatterOk(c, r) || underCanopy(c, r)) continue;
+          if (ground !== 'grass' || onIsletPad(c, r)) continue;
+          if (!scatterOk(c, r) || underCanopy(c, r) || underTallSprite(c, r)) continue;
           spots.push({ col: c, row: r });
         }
       }
       if (spots.length === 0) continue;
       const cell = spots[cellHash(bc + 17, br + 31) % spots.length]!;
       out.push({
-        kind: DECOR_KINDS[cellHash(cell.col, cell.row) % DECOR_KINDS.length]!,
+        kind: cellHash(cell.col, cell.row) % 3 === 0 ? 'mushroom' : 'flower',
         col: cell.col,
         row: cell.row,
       });
       taken.add(`${cell.col},${cell.row}`);
-    }
-  }
-  return out;
-}
-
-/** A few monarchs, never on neighbouring cells. The sheet is a 16px frame strip. */
-function butterflies(decor: readonly PropPlacement[]): PropPlacement[] {
-  const out: PropPlacement[] = [];
-  for (let r = 2; r < ROWS && out.length < 5; r += 1) {
-    for (let c = 2; c < COLS && out.length < 5; c += 1) {
-      if (cellHash(c, r) % 17 !== 0) continue;
-      if (terrainAt(c, r) !== 'grass' || !scatterOk(c, r) || underCanopy(c, r)) continue;
-      if (BUSHES.some((bush) => bush.col === c && bush.row === r)) continue;
-      if (LANTERNS.some((lantern) => lantern.col === c && lantern.row === r)) continue;
-      if (out.some((b) => Math.max(Math.abs(b.col - c), Math.abs(b.row - r)) < 8)) continue;
-      if (SHORE_ROCKS.some((rock) => rock.col === c && rock.row === r)) continue;
-      if (decor.some((prop) => prop.col === c && prop.row === r)) continue;
-      out.push({ kind: 'butterfly', col: c, row: r });
     }
   }
   return out;
@@ -690,7 +776,6 @@ export const PROPS: readonly PropPlacement[] = [
   ...SHORE_ROCKS.map((cell) => ({ kind: 'shoreRock' as const, ...cell })),
   ...LANTERNS.map((cell) => ({ kind: 'lantern' as const, ...cell })),
   ...DECORATIONS,
-  ...butterflies(DECORATIONS),
 ];
 
 /** Solid cells a placement occupies. */

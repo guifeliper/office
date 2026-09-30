@@ -8,6 +8,9 @@ import {
   CABIN_WALL_URLS,
   CAMPFIRE_FRAME_URL,
   BUTTERFLY_FRAME_URL,
+  CROP_STAGE_URL,
+  LILY_FRAME_URL,
+  REED_FRAME_URL,
   CANOPY_VARIANTS,
   PROP_URL,
 } from './art';
@@ -16,7 +19,10 @@ import { MapCamera } from './camera';
 import { createGround } from './ground';
 import { createPropSprites, type PropTextures } from './prop-view';
 import { GROUND_DEPTH } from './depth';
-import { PROPS, type PropKind } from './world-layout';
+import { PROPS, PROP_SPECS, lodgeShellSolid, propBase, terrainAt, type PropKind } from './world-layout';
+import { butterflyFlights, butterflyPose, type ButterflyFlight } from './butterflies';
+import { claimBeds, gardenAction, initialGarden, stepGarden, type GardenState } from './garden-cycle';
+import { lilyFrame, lilyOffsetY } from './lily-motion';
 import {
   CABIN_COLS,
   CABIN_PROPS,
@@ -70,10 +76,20 @@ export class OfficeScene {
   private dollsReady = false;
   private campfireFrames: Texture[] = [];
   private campfireSprites: Sprite[] = [];
+  private campfireMs = 0;
   private butterflySprites: Sprite[] = [];
   private butterflyFrames: Texture[] = [];
-  private campfireMs = 0;
-  private butterflyMs = 0;
+  private flights: ButterflyFlight[] = [];
+  private lilySprites: Sprite[] = [];
+  private lilyBaseY: number[] = [];
+  private reedSprites: Sprite[] = [];
+  private reedBaseY: number[] = [];
+  private lilyFrames: Texture[] = [];
+  private reedFrames: Texture[] = [];
+  private cropFrames: Texture[] = [];
+  private readonly cropSprites = new Map<string, Sprite>();
+  private readonly beds = new Map<string, GardenState>();
+  private ambientMs = 0;
   private flameFrames: Texture[] = [];
   private flameSprites: Sprite[] = [];
   private flameMs = 0;
@@ -128,9 +144,17 @@ export class OfficeScene {
       const props = createPropSprites(PROPS, propTextures, { canopies, bushes });
       for (const sprite of props) this.layers.yard.actors.addChild(sprite);
       this.campfireSprites = props.filter((sprite) => sprite.label === 'campfire');
-      this.butterflySprites = props.filter((sprite) => sprite.label === 'butterfly');
+      this.lilySprites = props.filter((sprite) => sprite.label === 'lily');
+      this.lilyBaseY = this.lilySprites.map((sprite) => sprite.y);
+      this.reedSprites = props.filter((sprite) => sprite.label === 'reed');
+      this.reedBaseY = this.reedSprites.map((sprite) => sprite.y);
       this.campfireFrames = await Promise.all(CAMPFIRE_FRAME_URL.map((url) => loadNearest(url)));
       this.butterflyFrames = await Promise.all(BUTTERFLY_FRAME_URL.map((url) => loadNearest(url)));
+      this.lilyFrames = await Promise.all(LILY_FRAME_URL.map((url) => loadNearest(url)));
+      this.reedFrames = await Promise.all(REED_FRAME_URL.map((url) => loadNearest(url)));
+      this.cropFrames = await Promise.all(CROP_STAGE_URL.map((url) => loadNearest(url)));
+      this.spawnButterflies();
+      this.spawnCrops();
     } catch (error) {
       console.error('Office art failed to load', error);
     }
@@ -402,17 +426,16 @@ export class OfficeScene {
 
   private tick(deltaMs: number): void {
     if (!this.view || !this.dollsReady) return;
-    this.applySnapshots(this.presence.step(deltaMs, this.reducedMotion, Date.now()), deltaMs);
+    const snaps = this.presence.step(deltaMs, this.reducedMotion, Date.now());
+    this.lastSnaps = new Map(snaps.map((snap) => [snap.id, snap]));
+    this.stepGarden(deltaMs);
+    this.applySnapshots(snaps, deltaMs);
     if (!this.reducedMotion && this.campfireFrames.length > 1) {
       this.campfireMs += deltaMs;
       const frame = this.campfireFrames[Math.floor(this.campfireMs / 180) % 4];
       if (frame) for (const sprite of this.campfireSprites) sprite.texture = frame;
     }
-    if (!this.reducedMotion && this.butterflyFrames.length > 1) {
-      this.butterflyMs += deltaMs;
-      const frame = this.butterflyFrames[Math.floor(this.butterflyMs / 140) % this.butterflyFrames.length];
-      if (frame) for (const sprite of this.butterflySprites) sprite.texture = frame;
-    }
+    this.animateAmbient(deltaMs);
     if (this.flameFrames.length > 0) {
       this.flameMs = this.reducedMotion ? 0 : this.flameMs + deltaMs;
       const frame = this.flameFrames[Math.floor(this.flameMs / FLAME_MS) % this.flameFrames.length];
@@ -445,7 +468,7 @@ export class OfficeScene {
       sprite.root.visible = true;
       place(sprite, snap);
       if (!sprite.root.visible) continue;
-      sprite.draw(model, snap, deltaMs);
+      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap));
     }
     for (const model of this.view.collaborators) {
       const sprite = this.collaborators.get(model.id);
@@ -461,9 +484,127 @@ export class OfficeScene {
       sprite.draw(model, snap, deltaMs);
     }
   }
+
+  private gardenPose(id: string, snap: PresenceSnapshot): { action: 'hoe' | 'sit' | 'water' | 'idle'; play: boolean } | null {
+    if (snap.leisure !== 'garden' || snap.zone !== 'yard') return null;
+    const bed = this.bedFor(id);
+    if (!bed) return null;
+    const state = this.beds.get(`${bed.col},${bed.row}`);
+    if (!state) return null;
+    return { action: gardenAction(state.phase), play: !this.reducedMotion && !snap.moving };
+  }
+
+  private bedFor(id: string): { col: number; row: number } | undefined {
+    const ids = [...this.consultants.keys()].filter((key) => {
+      const snap = this.lastSnaps.get(key);
+      return snap?.leisure === 'garden' && snap.zone === 'yard';
+    });
+    return claimBeds(ids, gardenBeds()).get(id);
+  }
+
+  private lastSnaps = new Map<string, PresenceSnapshot>();
+
+  private stepGarden(deltaMs: number): void {
+    const beds = gardenBeds();
+    for (const bed of beds) {
+      const key = `${bed.col},${bed.row}`;
+      if (!this.beds.has(key)) this.beds.set(key, initialGarden());
+    }
+    const ids = [...this.lastSnaps.entries()]
+      .filter(([, snap]) => snap.leisure === 'garden' && snap.zone === 'yard')
+      .map(([id]) => id);
+    const owned = claimBeds(ids, beds);
+    const present = new Set(
+      [...owned.entries()]
+        .filter(([id]) => !this.lastSnaps.get(id)?.moving)
+        .map(([, bed]) => `${bed.col},${bed.row}`),
+    );
+    for (const [key, state] of this.beds) {
+      const next = stepGarden(state, deltaMs, present.has(key), this.reducedMotion);
+      this.beds.set(key, next);
+      const sprite = this.cropSprites.get(key);
+      if (!sprite) continue;
+      const frame = this.cropFrames[next.stage];
+      if (frame) sprite.texture = frame;
+      sprite.visible = next.phase !== 'till';
+    }
+  }
+
+  private spawnButterflies(): void {
+    const perches = PROPS
+      .filter((prop) => prop.kind === 'flower' || prop.kind === 'bush')
+      .map((prop) => propBase(prop));
+    const blocked = (x: number, y: number) => {
+      const col = Math.floor(x / TILE);
+      const row = Math.floor(y / TILE);
+      if (lodgeShellSolid(col, row) || terrainAt(col, row) !== 'grass') return true;
+      return PROPS.some((prop) => PROP_SPECS[prop.kind].blocks.some(([dx, dy]) => prop.col + dx === col && prop.row + dy === row));
+    };
+    this.flights = butterflyFlights(perches, blocked);
+    const frame = this.butterflyFrames[0];
+    if (!frame) return;
+    for (const flight of this.flights) {
+      const sprite = new Sprite(frame);
+      sprite.anchor.set(0.5, 1);
+      sprite.roundPixels = true;
+      sprite.eventMode = 'none';
+      sprite.label = 'butterfly';
+      const start = flight.points[0]!;
+      sprite.position.set(start.x, start.y);
+      this.layers.yard.actors.addChild(sprite);
+      this.butterflySprites.push(sprite);
+    }
+  }
+
+  private spawnCrops(): void {
+    const frame = this.cropFrames[0];
+    if (!frame) return;
+    for (const bed of gardenBeds()) {
+      const { x, y } = propBase({ kind: 'gardenBed', ...bed });
+      const sprite = new Sprite(frame);
+      sprite.anchor.set(0.5, 1);
+      sprite.roundPixels = true;
+      sprite.eventMode = 'none';
+      sprite.visible = false;
+      sprite.position.set(Math.round(x), y - 8);
+      sprite.zIndex = y;
+      this.layers.yard.actors.addChild(sprite);
+      this.cropSprites.set(`${bed.col},${bed.row}`, sprite);
+    }
+  }
+
+  private animateAmbient(deltaMs: number): void {
+    if (!this.reducedMotion) this.ambientMs += deltaMs;
+    if (this.active !== 'yard') return;
+    this.flights.forEach((flight, index) => {
+      const sprite = this.butterflySprites[index];
+      if (!sprite) return;
+      const pose = butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion);
+      sprite.position.set(Math.round(pose.x), Math.round(pose.y));
+      sprite.zIndex = pose.y;
+      const frame = this.butterflyFrames[pose.frame];
+      if (frame) sprite.texture = frame;
+    });
+    this.lilySprites.forEach((sprite, index) => {
+      const frame = this.lilyFrames[lilyFrame(index, this.ambientMs, this.reducedMotion)];
+      if (frame) sprite.texture = frame;
+      const base = this.lilyBaseY[index];
+      if (base !== undefined) sprite.y = base + lilyOffsetY(index, this.ambientMs, this.reducedMotion);
+    });
+    this.reedSprites.forEach((sprite, index) => {
+      const frame = this.reedFrames[lilyFrame(index + 3, this.ambientMs, this.reducedMotion)];
+      if (frame) sprite.texture = frame;
+      const base = this.reedBaseY[index];
+      if (base !== undefined) sprite.y = base + lilyOffsetY(index + 3, this.ambientMs, this.reducedMotion);
+    });
+  }
 }
 
 const WHEEL_STEP = 80;
+
+function gardenBeds(): { col: number; row: number }[] {
+  return PROPS.filter((prop) => prop.kind === 'gardenBed').map((prop) => ({ col: prop.col, row: prop.row }));
+}
 
 function makeLayer(size: { width: number; height: number }): SceneLayer {
   const world = new Container();

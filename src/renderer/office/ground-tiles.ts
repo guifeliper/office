@@ -6,6 +6,7 @@ import {
   COLS,
   LODGE,
   ROWS,
+  YARD_MAP,
   TREES,
   cellHash,
   cliffRunAt,
@@ -91,7 +92,12 @@ export function inTrunkShade(col: number, row: number): boolean {
  */
 const DARK_PATH_CLEARANCE = 8.5;
 const LIGHT_YARD = { left: LODGE.left - 4, right: LODGE.right + 4, top: LODGE.top - 3, bottom: LODGE.bottom + 3 } as const;
-const GARDEN_YARD = { left: 17, right: 29, top: 19, bottom: 31 } as const;
+const GARDEN_YARD = {
+  left: YARD_MAP.garden.left - 1,
+  right: YARD_MAP.garden.right + 1,
+  top: YARD_MAP.garden.top - 1,
+  bottom: YARD_MAP.garden.bottom + 1,
+} as const;
 
 function inBox(col: number, row: number, box: { left: number; right: number; top: number; bottom: number }): boolean {
   return col >= box.left && col <= box.right && row >= box.top && row <= box.bottom;

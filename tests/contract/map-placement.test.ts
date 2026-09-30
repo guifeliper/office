@@ -57,16 +57,21 @@ describe('map placement', () => {
     }
   });
 
-  it('places a few butterflies far apart', () => {
-    const butterflies = PROPS.filter((prop) => prop.kind === 'butterfly');
-    expect(butterflies.length).toBeGreaterThan(0);
-    expect(butterflies.length).toBeLessThanOrEqual(5);
-    for (let i = 0; i < butterflies.length; i += 1) {
-      for (let j = i + 1; j < butterflies.length; j += 1) {
-        const a = butterflies[i]!;
-        const b = butterflies[j]!;
-        expect(Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))).toBeGreaterThanOrEqual(8);
-      }
+  it('keeps the south shore as grass and puts lilies and reeds only on water', () => {
+    for (let r = 0; r < ROWS; r += 1) {
+      for (let c = 0; c < COLS; c += 1) expect(terrainAt(c, r)).not.toBe('sand');
+    }
+    const pier = PROPS.find((prop) => prop.kind === 'pier')!;
+    const pierCells = new Set(propFootprint(pier).map((cell) => key(cell.col, cell.row)));
+    for (const prop of PROPS.filter((item) => item.kind === 'lily' || item.kind === 'reed')) {
+      expect(terrainAt(prop.col, prop.row), `${prop.kind} ${prop.col},${prop.row}`).toBe('water');
+      expect(pierCells.has(key(prop.col, prop.row))).toBe(false);
+    }
+    const rocks = PROPS.filter((prop) => prop.kind === 'shoreRock' || prop.kind === 'rock');
+    expect(rocks.length).toBeGreaterThan(0);
+    for (const rock of rocks) {
+      const ground = terrainAt(rock.col, rock.row);
+      expect(ground === 'grass' || ground === 'path', `${rock.kind} ${rock.col},${rock.row}`).toBe(true);
     }
   });
 
@@ -79,7 +84,9 @@ describe('map placement', () => {
   it('keeps the pier and any dock over water at the shore, clear of other props', () => {
     const docks = PROPS.filter((prop) => prop.kind === 'pier' || prop.kind === 'bridge');
     expect(docks.length).toBeGreaterThan(0);
-    const others = new Set(PROPS.filter((prop) => prop.kind !== 'pier' && prop.kind !== 'bridge').flatMap(footprintKeys));
+    const others = new Set(
+      PROPS.filter((prop) => prop.kind !== 'pier' && prop.kind !== 'bridge' && prop.kind !== 'canoe').flatMap(footprintKeys),
+    );
     for (const dock of docks) {
       const cells = propFootprint(dock);
       let wet = 0;
@@ -96,6 +103,12 @@ describe('map placement', () => {
       expect(wet).toBeGreaterThan(0);
       expect(shore).toBe(true);
     }
+    const canoe = PROPS.find((prop) => prop.kind === 'canoe');
+    expect(canoe).toBeTruthy();
+    expect(terrainAt(canoe!.col, canoe!.row)).toBe('water');
+    const pierCells = new Set(docks.flatMap((dock) => propFootprint(dock).map((cell) => key(cell.col, cell.row))));
+    const moored = propFootprint(canoe!).some((cell) => pierCells.has(key(cell.col, cell.row)));
+    expect(moored).toBe(true);
   });
 
   it('puts the cliff foot on water with water to its south', () => {

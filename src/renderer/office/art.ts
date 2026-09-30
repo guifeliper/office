@@ -41,6 +41,13 @@ export const PROP_URL: Record<PropKind, { base: string; foreground?: string }> =
   sandcastle: { base: yard('sandcastle.png') },
   waterfall: { base: yard('waterfall.png') },
   fishman: { base: yard('fishman.png') },
+  pine: { base: yard('pine.png') },
+  palm: { base: yard('palm.png') },
+  bench: { base: yard('bench.png') },
+  stall: { base: yard('stall.png') },
+  barrel: { base: yard('barrel.png') },
+  starfish: { base: yard('starfish.png') },
+  reed: { base: yard('reed.png') },
 };
 
 /** Three maple crowns from Maple Tree.png, row y=49. */
@@ -79,3 +86,6 @@ export const CAMPFIRE_FRAME_URL = [0, 1, 2, 3, 4, 5].map((i) => yard(`bonfire-${
 
 /** Four frames from Monarch Butterfly.png, one wingbeat. */
 export const BUTTERFLY_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`butterfly-${i}.png`));
+export const LILY_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`lily-${i}.png`));
+export const REED_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`reed-${i}.png`));
+export const CROP_STAGE_URL = [0, 1, 2, 3].map((i) => yard(`crop-${i}.png`));

@@ -13,10 +13,10 @@ export const LOOK_URLS: readonly string[] = Array.from({ length: LOOK_COUNT }, (
   new URL(`../../../.cache/tiny-farm/cast/look-${String(i).padStart(2, '0')}.png`, import.meta.url).href,
 );
 
-export type CastAction = 'idle' | 'walk' | 'sit' | 'axe' | 'hoe';
+export type CastAction = 'idle' | 'walk' | 'sit' | 'axe' | 'hoe' | 'water';
 
-export const CAST_ROW: Record<CastAction, number> = { idle: 0, walk: 1, sit: 2, axe: 3, hoe: 4 };
-export const CAST_FRAMES: Record<CastAction, number> = { idle: 4, walk: 6, sit: 1, axe: 6, hoe: 6 };
+export const CAST_ROW: Record<CastAction, number> = { idle: 0, walk: 1, sit: 2, axe: 3, hoe: 4, water: 5 };
+export const CAST_FRAMES: Record<CastAction, number> = { idle: 4, walk: 6, sit: 1, axe: 6, hoe: 6, water: 8 };
 
 const FACING_ORDER: readonly Facing[] = ['south', 'north', 'east', 'west'];
 

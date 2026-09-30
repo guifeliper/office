@@ -82,7 +82,8 @@ describe('feet depth sort', () => {
     const lowestFeet = depthFromFeet(ROWS * TILE);
     expect(FOREGROUND_DEPTH).toBeGreaterThan(lowestFeet);
     const overhead = PROPS.filter((p) => PROP_SPECS[p.kind].foreground === 'overhead');
-    expect([...new Set(overhead.map((p) => p.kind))].sort()).toEqual(['gatehouse']);
+    expect(overhead).toEqual([]);
+    expect(foregroundDepth(0)).toBeGreaterThan(lowestFeet);
     for (const placement of overhead) {
       const { y } = propBase(placement);
       expect(foregroundDepth(y)).toBeGreaterThan(lowestFeet);

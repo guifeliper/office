@@ -53,6 +53,7 @@ function slice(sheet: Texture): CharacterSheets {
     idle: byFacing((facing) => frames('idle', facing)),
     walk: byFacing((facing) => frames('walk', facing)),
     sit: byFacing((facing) => frames('sit', facing)[0]!),
+    water: byFacing((facing) => frames('water', facing)),
     leisure: Object.fromEntries(
       LEISURE_KINDS.map((kind) => [kind, byFacing((facing) => frames(LEISURE_ACTION[kind], facing))]),
     ) as Record<LeisureKind, Record<Facing, Texture[]>>,
@@ -64,6 +65,7 @@ function allTextures(look: CharacterSheets): Texture[] {
     ...Object.values(look.idle).flat(),
     ...Object.values(look.walk).flat(),
     ...Object.values(look.sit),
+    ...Object.values(look.water).flat(),
     ...Object.values(look.leisure).flatMap((byFacing) => Object.values(byFacing).flat()),
   ];
 }

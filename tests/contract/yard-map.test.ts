@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseYardMap } from '../../src/renderer/office/yard-map';
-import { GATE_ROW, PROP_SPECS, PROPS, YARD_MAP } from '../../src/renderer/office/world-layout';
+import { PROP_SPECS, PROPS, YARD_MAP } from '../../src/renderer/office/world-layout';
 
 const file = new URL('../../src/renderer/office/yard-map.yaml', import.meta.url);
 const text = readFileSync(file, 'utf8');
@@ -11,7 +11,7 @@ describe('yard map contract', () => {
   it('loads the checked-in document as the layout the renderer uses', () => {
     const parsed = parseYardMap(text, kinds);
     expect(parsed).toEqual(YARD_MAP);
-    expect(PROPS.find((prop) => prop.kind === 'gateRight')?.row).toBe(GATE_ROW);
+    expect(PROPS.some((prop) => prop.kind === 'gateLeft' || prop.kind === 'gateRight' || prop.kind === 'gatehouse')).toBe(false);
     expect(PROPS.some((prop) => prop.kind === 'bloom')).toBe(false);
     expect(PROPS.some((prop) => prop.kind === 'flower')).toBe(true);
     expect(PROPS.some((prop) => prop.kind === 'mushroom')).toBe(true);

@@ -58,7 +58,7 @@ function passesNear(path: readonly ZonedPoint[], target: ZonedPoint): boolean {
 
 describe('yard nav grid', () => {
   it('blocks fence, trunks, water, and the closed lodge shell; keeps gate and lodge door open', () => {
-    for (const kind of ['fence', 'tree', 'gateLeft', 'campfire'] as const) {
+    for (const kind of ['fence', 'tree', 'campfire'] as const) {
       const cells = cellsOf(kind);
       expect(cells.length).toBeGreaterThan(0);
       for (const cell of cells) expect(NAV.walkable(cell.col, cell.row)).toBe(false);

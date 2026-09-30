@@ -27,7 +27,13 @@ export interface CharacterSheets {
   idle: Record<Facing, Texture[]>;
   walk: Record<Facing, Texture[]>;
   sit: Record<Facing, Texture>;
+  water: Record<Facing, Texture[]>;
   leisure: Record<LeisureKind, Record<Facing, Texture[]>>;
+}
+
+export interface GardenPose {
+  action: 'hoe' | 'sit' | 'water' | 'idle';
+  play: boolean;
 }
 
 export interface SpriteChrome {
@@ -60,10 +66,10 @@ export class ConsultantSprite {
     this.layoutChrome(model);
   }
 
-  draw(model: SpriteChrome, snap: PresenceSnapshot, deltaMs: number): void {
+  draw(model: SpriteChrome, snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null): void {
     this.root.position.set(Math.round(snap.x), Math.round(snap.y));
     this.root.zIndex = depthFromFeet(snap.y);
-    this.body.texture = this.frameFor(snap, deltaMs);
+    this.body.texture = this.frameFor(snap, deltaMs, garden);
     this.layoutChrome(model);
   }
 
@@ -71,7 +77,8 @@ export class ConsultantSprite {
     this.root.destroy({ children: true });
   }
 
-  private frameFor(snap: PresenceSnapshot, deltaMs: number): Texture {
+  private frameFor(snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null): Texture {
+    if (snap.leisure === 'garden' && garden) return this.gardenFrame(snap, deltaMs, garden);
     if (snap.leisure) {
       const frames = this.sheets.leisure[snap.leisure][snap.facing];
       if (!snap.leisureMotion || frames.length <= 1) {
@@ -99,6 +106,20 @@ export class ConsultantSprite {
     }
     const frames = this.sheets.walk[snap.facing];
     return frames[this.walkIndex] ?? frames[0]!;
+  }
+
+  private gardenFrame(snap: PresenceSnapshot, deltaMs: number, garden: GardenPose): Texture {
+    const facing = snap.facing;
+    if (garden.action === 'sit') return this.sheets.sit[facing];
+    const frames = garden.action === 'water'
+      ? this.sheets.water[facing]
+      : garden.action === 'hoe'
+        ? this.sheets.leisure.garden[facing]
+        : this.sheets.idle[facing];
+    if (!garden.play || frames.length <= 1) return frames[0]!;
+    this.leisureMs += deltaMs;
+    const step = garden.action === 'water' ? 140 : garden.action === 'hoe' ? 160 : 320;
+    return frames[Math.floor(this.leisureMs / step) % frames.length] ?? frames[0]!;
   }
 
   /** Provenance stays a dot above the head. The name lives in the HTML roster. */

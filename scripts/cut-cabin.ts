@@ -106,7 +106,7 @@ write(CABIN, 'door', crop(door, 32, 0, 32, 32));
 
 /**
  * Cast. One strip per look, one row per action, 32×32 cells, pack order south/north/east/west.
- * Rows: idle (4×4), walk (4×6), sit (4×1), axe (4×6), hoe (4×6).
+ * Rows: idle (4×4), walk (4×6), sit (4×1), axe (4×6), hoe (4×6), watering (4×8).
  */
 const ACTIONS = [
   { dir: '1. Idle', w: 512 },
@@ -114,6 +114,7 @@ const ACTIONS = [
   { dir: '18. Setting', w: 128 },
   { dir: '5. Axe and Sickle', w: 768, weapon: 'Weapons/Axe/1.png' },
   { dir: '4. Pickaxe, Hoe and Catching insects', w: 768, weapon: 'Weapons/Hoe/1.png' },
+  { dir: '7. Watering', w: 1024, weapon: 'Weapons/Watering/1.png' },
 ] as const;
 
 const HAIRS = ['Josh', 'Lyria', 'Standard', 'Fawn', 'Sebastian', 'Iridessa', 'Silvermist'] as const;

@@ -63,6 +63,13 @@ const FILES: Record<PropKind, { base: string; foreground?: string }> = {
   sandcastle: { base: 'sandcastle.png' },
   waterfall: { base: 'waterfall.png' },
   fishman: { base: 'fishman.png' },
+  pine: { base: 'pine.png' },
+  palm: { base: 'palm.png' },
+  bench: { base: 'bench.png' },
+  stall: { base: 'stall.png' },
+  barrel: { base: 'barrel.png' },
+  starfish: { base: 'starfish.png' },
+  reed: { base: 'reed.png' },
 };
 
 const width = COLS * TILE;
@@ -96,6 +103,10 @@ for (const placement of PROPS) {
     : files.base;
   const base = load(baseName);
   draws.push({ z: depthFromFeet(y), img: base, x: Math.round(x), y });
+  if (placement.kind === 'gardenBed') {
+    const stage = load('crop-2.png');
+    draws.push({ z: depthFromFeet(y) + 0.1, img: stage, x: Math.round(x), y: y - 6 });
+  }
   const sort = PROP_SPECS[placement.kind].foreground;
   const topName = placement.kind === 'tree'
     ? `maple-canopy-${canopyVariant(placement.col, placement.row) % 3}.png`
@@ -130,6 +141,12 @@ fs.mkdirSync(path.join(OUT, 'island-rounds'), { recursive: true });
 writePng(path.join(OUT, 'courtyard-1x.png'), scene);
 writePng(path.join(OUT, 'island-hub-1x.png'), scene);
 writePng(path.join(OUT, 'island-rounds/r16-1x.png'), scene);
+const round = process.env.COURTYARD_ROUND;
+if (round) {
+  const rounds = path.join(OUT, 'v4-rounds');
+  fs.mkdirSync(rounds, { recursive: true });
+  writePng(path.join(rounds, `r${round}-1x.png`), scene);
+}
 writePng(path.join(OUT, 'courtyard-2x.png'), scaleImage(crop(scene, 8 * TILE, 8 * TILE, 32 * TILE, 32 * TILE), 2));
 const half = 32 * TILE;
 const quadrants = [
