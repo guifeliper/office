@@ -180,9 +180,9 @@ write('stump', crop(pine, 203, 37, 10, 10), true);
 write('woodpile', crop(sheet('Objects/Props/wood.png'), 32, 1, 16, 14), true);
 
 const soil = tile(sheet('Tileset/Tilled Soil and wet soil.png'), 9, 1);
-const bed = createImage(48, 32);
+const bed = createImage(32, 32);
 for (let row = 0; row < 2; row += 1) {
-  for (let col = 0; col < 3; col += 1) over(bed, soil, col * 16, row * 16);
+  for (let col = 0; col < 2; col += 1) over(bed, soil, col * 16, row * 16);
 }
 write('garden-bed', bed);
 

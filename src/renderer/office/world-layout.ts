@@ -84,7 +84,8 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   campfire: { span: 1, blocks: row(1), foreground: 'none' },
   stumpAxe: { span: 1, blocks: row(1), foreground: 'none' },
   woodpile: { span: 1, blocks: row(1), foreground: 'none' },
-  gardenBed: { span: 3, blocks: [...row(3), ...row(3, -1)], foreground: 'none' },
+  /** Two by two tilled tiles, so the four beds stay separate plots. */
+  gardenBed: { span: 2, blocks: [...row(2), ...row(2, -1)], foreground: 'none' },
   gateLeft: { span: 1, blocks: row(1), foreground: 'none' },
   gateRight: { span: 1, blocks: row(1), foreground: 'none' },
   // Stone pillars are solid; the two middle cells are the passage.
@@ -312,14 +313,15 @@ export function elevationAt(col: number, rowIndex: number): 0 | 1 | 2 {
 const NORTH_FACE = YARD_MAP.northFace;
 
 function inNorthPool(col: number, rowIndex: number): boolean {
-  if (rowIndex < NORTH_FACE.row || rowIndex > NORTH_FACE.row + 4) return false;
+  if (rowIndex < NORTH_FACE.row || rowIndex > NORTH_FACE.row + 5) return false;
   if (!inIsland(col, rowIndex)) return false;
   if (col >= LODGE.left && col <= LODGE.right && rowIndex >= LODGE.top) return false;
   const mid = (NORTH_FACE.left + NORTH_FACE.right) / 2;
   const half = (NORTH_FACE.right - NORTH_FACE.left) / 2;
-  const dx = Math.abs(col + 0.5 - mid);
-  if (rowIndex <= NORTH_FACE.row + 3) return col >= NORTH_FACE.left && col <= NORTH_FACE.right && dx <= half;
-  return dx <= half * 0.48;
+  if (rowIndex === NORTH_FACE.row) return col >= NORTH_FACE.left && col <= NORTH_FACE.right;
+  const t = (rowIndex - NORTH_FACE.row) / 5;
+  const rx = half * (1 - t * t * 0.62);
+  return Math.abs(col + 0.5 - mid) <= rx;
 }
 
 /**
@@ -364,6 +366,7 @@ export function pathDistance(col: number, rowIndex: number): number {
 function onPath(col: number, rowIndex: number): boolean {
   if (lodgeShellSolid(col, rowIndex)) return false;
   if (rowIndex === LODGE.bottom && col === LODGE.doorCols[0]) return true;
+  if (rowIndex === GATE_ROW && (GATE_COLS as readonly number[]).includes(col)) return true;
   const d = pathDistance(col, rowIndex);
   if (d <= 0.7) return true;
   if (d > PATH_HALF_WIDTH) return false;
@@ -633,14 +636,14 @@ export const BUSHES: readonly Cell[] = bushes();
  * Each cell is checked against the path half-width when the layout is built.
  */
 const LANTERNS: readonly Cell[] = [
-  { col: 28, row: 35 },
+  { col: 27, row: 35 },
   { col: 35, row: 34 },
-  { col: 42, row: 34 },
-  { col: 46, row: 39 },
-  { col: 24, row: 33 },
-  { col: 38, row: 28 },
-  { col: 33, row: 24 },
-  { col: 21, row: 36 },
+  { col: 36, row: 38 },
+  { col: 42, row: 38 },
+  { col: 46, row: 42 },
+  { col: 27, row: 48 },
+  { col: 23, row: 30 },
+  { col: 34, row: 24 },
 ].filter((c) => {
   if (terrainAt(c.col, c.row) !== 'grass' || pathDistance(c.col, c.row) <= 1.05) return false;
   if (BUSHES.some((b) => b.col === c.col && b.row === c.row)) return false;
@@ -656,6 +659,8 @@ function shoreRocks(): Cell[] {
     for (let c = 0; c < COLS && out.length < SHORE_ROCK_CAP; c += 1) {
       if (terrainAt(c, r) !== 'grass' || !touchesWater(c, r)) continue;
       if (c >= GATE_COLS[0] && c <= GATE_COLS[1]) continue;
+      if (LEISURE_CELLS.some((cell) => cell.col === c && cell.row === r)) continue;
+      if (underFixedSprite(c, r)) continue;
       if (cellHash(c, r) % 3 !== 0) continue;
       if (TREES.some((t) => underCanopy(c, r) || (t.col === c && t.row === r))) continue;
       if (BUSHES.some((b) => b.col === c && b.row === r)) continue;
@@ -667,6 +672,27 @@ function shoreRocks(): Cell[] {
 }
 
 export const SHORE_ROCKS: readonly Cell[] = shoreRocks();
+
+/** Shore rocks stay off sprites that rise above their anchor cell. */
+function underFixedSprite(col: number, row: number): boolean {
+  const rise: Partial<Record<PropKind, number>> = {
+    fishman: 6,
+    greenhouse: 5,
+    doghouse: 3,
+    stall: 3,
+    cherry: 3,
+    fruitTree: 3,
+    palm: 3,
+    pine: 2,
+    waterfall: 3,
+  };
+  return FIXED.some((prop) => {
+    const up = rise[prop.kind];
+    if (!up) return false;
+    const span = PROP_SPECS[prop.kind].span;
+    return col >= prop.col - 1 && col < prop.col + span + 1 && row <= prop.row + 1 && row >= prop.row - up;
+  });
+}
 
 function underCanopy(col: number, rowIndex: number): boolean {
   return TREES.some((tree) => Math.abs(tree.col - col) <= 1 && rowIndex >= tree.row - 2 && rowIndex <= tree.row + 1);
@@ -742,7 +768,7 @@ function decorations(): PropPlacement[] {
   for (let br = 0; br < ROWS; br += 5) {
     for (let bc = 0; bc < COLS; bc += 5) {
       // Leave some patches empty so flowers and mushrooms read as clusters, not ground fill.
-      if (cellHash(bc, br) % 4 === 0) continue;
+      if (cellHash(bc, br) % 7 === 0) continue;
       const spots: Cell[] = [];
       for (let r = br; r < br + 5 && r < ROWS; r += 1) {
         for (let c = bc; c < bc + 5 && c < COLS; c += 1) {
@@ -761,6 +787,19 @@ function decorations(): PropPlacement[] {
         row: cell.row,
       });
       taken.add(`${cell.col},${cell.row}`);
+    }
+  }
+  let butterflies = 0;
+  for (let r = 10; r < ROWS - 10 && butterflies < 5; r += 3) {
+    for (let c = 10; c < COLS - 10 && butterflies < 5; c += 3) {
+      if (cellHash(c, r) % 3 !== 0) continue;
+      if (taken.has(`${c},${r}`)) continue;
+      if (terrainAt(c, r) !== 'grass' || !scatterOk(c, r) || underCanopy(c, r) || underTallSprite(c, r)) continue;
+      if (pathDistance(c, r) < 2.4) continue;
+      if (out.some((p) => p.kind === 'butterfly' && Math.max(Math.abs(p.col - c), Math.abs(p.row - r)) < 8)) continue;
+      out.push({ kind: 'butterfly', col: c, row: r });
+      taken.add(`${c},${r}`);
+      butterflies += 1;
     }
   }
   return out;

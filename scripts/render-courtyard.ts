@@ -105,7 +105,9 @@ for (const placement of PROPS) {
   draws.push({ z: depthFromFeet(y), img: base, x: Math.round(x), y });
   if (placement.kind === 'gardenBed') {
     const stage = load('crop-2.png');
-    draws.push({ z: depthFromFeet(y) + 0.1, img: stage, x: Math.round(x), y: y - 6 });
+    for (const [dx, dy] of [[-8, -6], [8, -6], [-8, -18], [8, -18]] as const) {
+      draws.push({ z: depthFromFeet(y) + 0.1, img: stage, x: Math.round(x + dx), y: y + dy });
+    }
   }
   const sort = PROP_SPECS[placement.kind].foreground;
   const topName = placement.kind === 'tree'
