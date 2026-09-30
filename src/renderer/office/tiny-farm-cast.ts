@@ -13,10 +13,18 @@ export const LOOK_URLS: readonly string[] = Array.from({ length: LOOK_COUNT }, (
   new URL(`../../../.cache/tiny-farm/cast/look-${String(i).padStart(2, '0')}.png`, import.meta.url).href,
 );
 
-export type CastAction = 'idle' | 'walk' | 'sit' | 'axe' | 'hoe' | 'water';
+export type CastAction =
+  | 'idle' | 'walk' | 'sit' | 'axe' | 'hoe' | 'water'
+  | 'fishCast' | 'fishWait' | 'fishBite' | 'fishReel' | 'fishCatch';
 
-export const CAST_ROW: Record<CastAction, number> = { idle: 0, walk: 1, sit: 2, axe: 3, hoe: 4, water: 5 };
-export const CAST_FRAMES: Record<CastAction, number> = { idle: 4, walk: 6, sit: 1, axe: 6, hoe: 6, water: 8 };
+export const CAST_ROW: Record<CastAction, number> = {
+  idle: 0, walk: 1, sit: 2, axe: 3, hoe: 4, water: 5,
+  fishCast: 6, fishWait: 7, fishBite: 8, fishReel: 9, fishCatch: 10,
+};
+export const CAST_FRAMES: Record<CastAction, number> = {
+  idle: 4, walk: 6, sit: 1, axe: 6, hoe: 6, water: 8,
+  fishCast: 15, fishWait: 4, fishBite: 8, fishReel: 4, fishCatch: 4,
+};
 
 const FACING_ORDER: readonly Facing[] = ['south', 'north', 'east', 'west'];
 
@@ -26,8 +34,8 @@ export function castFrameRect(action: CastAction, facing: Facing, frame: number)
   return { x: index * CAST_CELL, y: CAST_ROW[action] * CAST_CELL, w: CAST_CELL, h: CAST_CELL };
 }
 
-/** Hearth sits on the chair; coffee stands idle; woodpile swings the axe; garden hoes. */
-export const LEISURE_ACTION: Record<LeisureKind, CastAction> = {
+/** One pack row per activity. Fishing cycles through its own rows, so it is not here. */
+export const LEISURE_ACTION: Record<Exclude<LeisureKind, 'fishing'>, CastAction> = {
   hearth: 'sit',
   coffee: 'idle',
   woodpile: 'axe',

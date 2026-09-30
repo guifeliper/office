@@ -4,6 +4,7 @@ import {
   CABIN_NAV,
   COFFEE_SPOTS,
   DESKS,
+  FISHING_SPOTS,
   GARDEN_SPOTS,
   GATEHOUSE,
   HEARTH_SPOTS,
@@ -115,7 +116,7 @@ describe('routes across the door', () => {
   });
 
   it('reaches every leisure spot from a desk and back, without the gate', () => {
-    for (const spot of [...HEARTH_SPOTS, ...COFFEE_SPOTS, ...WOODPILE_SPOTS, ...GARDEN_SPOTS]) {
+    for (const spot of [...HEARTH_SPOTS, ...COFFEE_SPOTS, ...WOODPILE_SPOTS, ...GARDEN_SPOTS, ...FISHING_SPOTS]) {
       const cell = cellAt(spot.x, spot.y);
       expect(gridFor(spot.zone).walkable(cell.col, cell.row)).toBe(true);
       const out = routeTo(DESKS[5]!, spot);

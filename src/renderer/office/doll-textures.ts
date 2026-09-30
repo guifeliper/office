@@ -1,7 +1,7 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { CharacterSheets } from './consultant-view';
 import type { Facing } from './landmarks';
-import { LEISURE_KINDS, type LeisureKind } from './leisure';
+import { LEISURE_KINDS } from './leisure';
 import { LEISURE_ACTION, LOOK_URLS, CAST_FRAMES, castFrameRect, lookIndexFor, type CastAction } from './tiny-farm-cast';
 
 const FACINGS: readonly Facing[] = ['south', 'north', 'east', 'west'];
@@ -54,9 +54,16 @@ function slice(sheet: Texture): CharacterSheets {
     walk: byFacing((facing) => frames('walk', facing)),
     sit: byFacing((facing) => frames('sit', facing)[0]!),
     water: byFacing((facing) => frames('water', facing)),
+    fishing: byFacing((facing) => ({
+      cast: frames('fishCast', facing),
+      wait: frames('fishWait', facing),
+      bite: frames('fishBite', facing),
+      reel: frames('fishReel', facing),
+      catch: frames('fishCatch', facing),
+    })),
     leisure: Object.fromEntries(
-      LEISURE_KINDS.map((kind) => [kind, byFacing((facing) => frames(LEISURE_ACTION[kind], facing))]),
-    ) as Record<LeisureKind, Record<Facing, Texture[]>>,
+      LEISURE_KINDS.filter((kind) => kind !== 'fishing').map((kind) => [kind, byFacing((facing) => frames(LEISURE_ACTION[kind], facing))]),
+    ) as CharacterSheets['leisure'],
   };
 }
 
@@ -66,6 +73,7 @@ function allTextures(look: CharacterSheets): Texture[] {
     ...Object.values(look.walk).flat(),
     ...Object.values(look.sit),
     ...Object.values(look.water).flat(),
+    ...Object.values(look.fishing).flatMap((phases) => Object.values(phases).flat()),
     ...Object.values(look.leisure).flatMap((byFacing) => Object.values(byFacing).flat()),
   ];
 }

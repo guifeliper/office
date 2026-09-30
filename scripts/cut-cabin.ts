@@ -40,6 +40,30 @@ function over(dst: Rgba, src: Rgba, dx = 0, dy = 0): void {
   }
 }
 
+/** A few fishing rows only ship green eyes. Use that color instead of dropping the look. */
+function resolveLayer(base: string, rel: string): string | null {
+  const exact = path.join(base, rel);
+  if (fs.existsSync(exact)) return exact;
+  const green = exact.replace(/\/[^/]+\.png$/, '/Green.png');
+  if (fs.existsSync(green)) return green;
+  const dir = path.dirname(exact);
+  if (!fs.existsSync(dir)) return null;
+  const png = fs.readdirSync(dir).find((name) => name.endsWith('.png'));
+  return png ? path.join(dir, png) : null;
+}
+
+/** The fishing rod sheets are drawn at 64 px. Nearest-neighbor halves them onto the 32 px body. */
+function down2(src: Rgba): Rgba {
+  const out = createImage(src.width / 2, src.height / 2);
+  for (let y = 0; y < out.height; y += 1) {
+    for (let x = 0; x < out.width; x += 1) {
+      const s = ((y * 2) * src.width + x * 2) * 4;
+      out.data.set(src.data.subarray(s, s + 4), (y * out.width + x) * 4);
+    }
+  }
+  return out;
+}
+
 /** Pack art is hard-edged; any partial alpha is snapped so the checker stays clean. */
 function snapAlpha(img: Rgba): Rgba {
   for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i]! >= 128 ? 255 : 0;
@@ -106,8 +130,11 @@ write(CABIN, 'door', crop(door, 32, 0, 32, 32));
 
 /**
  * Cast. One strip per look, one row per action, 32×32 cells, pack order south/north/east/west.
- * Rows: idle (4×4), walk (4×6), sit (4×1), axe (4×6), hoe (4×6), watering (4×8).
+ * Rows: idle, walk, sit, axe, hoe, watering, then the fishing cycle
+ * (cast 15, wait 4, bite 8, reel 4, catch 4 frames per facing).
+ * The strip is as wide as the cast, 1920.
  */
+const STRIP_W = 1920;
 const ACTIONS = [
   { dir: '1. Idle', w: 512 },
   { dir: '2. Walk', w: 768 },
@@ -115,6 +142,11 @@ const ACTIONS = [
   { dir: '5. Axe and Sickle', w: 768, weapon: 'Weapons/Axe/1.png' },
   { dir: '4. Pickaxe, Hoe and Catching insects', w: 768, weapon: 'Weapons/Hoe/1.png' },
   { dir: '7. Watering', w: 1024, weapon: 'Weapons/Watering/1.png' },
+  { dir: '12. Fishing - Cast', w: 1920, weapon: 'Weapons/1.png', scale: 2 },
+  { dir: '12.1. Fishing - Wait', w: 512, weapon: 'Weapons/1.png', scale: 2 },
+  { dir: '12.2. Fishing - Bite', w: 1024, weapon: 'Weapons/1.png', scale: 2 },
+  { dir: '12.3. Fishing - Reel', w: 512, weapon: 'Weapons/1.png', scale: 2 },
+  { dir: '12.4. Fishing - Catch', w: 512, weapon: 'Weapons/1.png', scale: 2 },
 ] as const;
 
 const HAIRS = ['Josh', 'Lyria', 'Standard', 'Fawn', 'Sebastian', 'Iridessa', 'Silvermist'] as const;
@@ -133,7 +165,7 @@ for (let i = 0; i < LOOK_COUNT; i += 1) {
     hairColor: HAIR_COLORS[Math.floor(i / 2) % HAIR_COLORS.length]!,
     eyes: `${MALE.has(hair) ? 'Male' : 'Female'}/${EYES[i % EYES.length]}`,
   };
-  const out = createImage(1024, ACTIONS.length * 32);
+  const out = createImage(STRIP_W, ACTIONS.length * 32);
   ACTIONS.forEach((action, row) => {
     const base = path.join(CHAR, action.dir);
     const layers = [
@@ -144,11 +176,14 @@ for (let i = 0; i < LOOK_COUNT; i += 1) {
       ...('weapon' in action ? [action.weapon] : []),
     ];
     for (const rel of layers) {
-      const file = path.join(base, rel);
-      if (!fs.existsSync(file)) throw new Error(`missing layer ${action.dir}/${rel}`);
-      const img = readPng(file);
-      if (img.width !== action.w || img.height !== 32) throw new Error(`${action.dir}/${rel} is ${img.width}×${img.height}`);
-      over(out, img, 0, row * 32);
+      const file = resolveLayer(base, rel);
+      if (!file) throw new Error(`missing layer ${action.dir}/${rel}`);
+      const raw = readPng(file);
+      const scaled = 'scale' in action && action.scale === 2 && rel.startsWith('Weapons/') ? down2(raw) : raw;
+      if (scaled.width !== action.w || scaled.height !== 32) {
+        throw new Error(`${action.dir}/${rel} is ${raw.width}×${raw.height}`);
+      }
+      over(out, scaled, 0, row * 32);
     }
   });
   write(CAST, `look-${String(i).padStart(2, '0')}`, out);

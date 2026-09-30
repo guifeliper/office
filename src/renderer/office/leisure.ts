@@ -1,17 +1,18 @@
 import { COFFEE_CELLS, HEARTH_CHAIR_CELLS } from './cabin-layout';
 
-export type LeisureKind = 'hearth' | 'coffee' | 'woodpile' | 'garden';
+export type LeisureKind = 'hearth' | 'coffee' | 'woodpile' | 'garden' | 'fishing';
 export type LeisureFacing = 'south' | 'north' | 'east' | 'west';
 export type Zone = 'yard' | 'cabin';
 
 /** Overflow order. The yard campfire is scenery now; nobody paths to it. */
-export const LEISURE_KINDS: readonly LeisureKind[] = ['hearth', 'coffee', 'woodpile', 'garden'];
+export const LEISURE_KINDS: readonly LeisureKind[] = ['hearth', 'coffee', 'woodpile', 'garden', 'fishing'];
 
 export const LEISURE_ZONE: Record<LeisureKind, Zone> = {
   hearth: 'cabin',
   coffee: 'cabin',
   woodpile: 'yard',
   garden: 'yard',
+  fishing: 'yard',
 };
 
 /** Hearth seats use the chair; the others stand. */
@@ -20,6 +21,7 @@ export const LEISURE_SEATED: Record<LeisureKind, boolean> = {
   coffee: false,
   woodpile: false,
   garden: false,
+  fishing: false,
 };
 
 export interface LeisureDef {
@@ -67,6 +69,9 @@ export const LEISURE_DEFS: readonly LeisureDef[] = [
   { kind: 'garden', col: 20, row: 37, facing: 'south' },
   { kind: 'garden', col: 20, row: 38, facing: 'south' },
   { kind: 'garden', col: 20, row: 41, facing: 'north' },
+  // Last land cells beside the pier (31, 52). They face the water.
+  { kind: 'fishing', col: 30, row: 51, facing: 'south' },
+  { kind: 'fishing', col: 32, row: 51, facing: 'south' },
 ];
 
 export const LEISURE_CAPACITY: Record<LeisureKind, number> = {
@@ -74,6 +79,7 @@ export const LEISURE_CAPACITY: Record<LeisureKind, number> = {
   coffee: 2,
   woodpile: 2,
   garden: 3,
+  fishing: 2,
 };
 
 /**
@@ -109,14 +115,16 @@ export const LEISURE_STEP_MS: Record<LeisureKind, number> = {
   coffee: 320,
   woodpile: 120,
   garden: 160,
+  fishing: 280,
 };
 
-/** Pack frame counts: sit is one still, idle 4, axe 6, hoe 6. */
+/** Pack frame counts: sit is one still, idle 4, axe 6, hoe 6. Fishing uses its own cycle. */
 export const LEISURE_FRAMES: Record<LeisureKind, number> = {
   hearth: 1,
   coffee: 4,
   woodpile: 6,
   garden: 6,
+  fishing: 4,
 };
 
 /**

@@ -97,10 +97,10 @@ describe('Tiny Farm sit anchor', () => {
     expect(SEAT_DROP).toBe(CAST_CELL - CAST_FEET_ROW);
   });
 
-  it('ships 16 composed looks of 6 action rows', () => {
+  it('ships 16 composed looks, with the fishing cycle after the six base rows', () => {
     for (let i = 0; i < LOOK_COUNT; i += 1) {
       const img = readPng(path.join(ART, `cast/look-${String(i).padStart(2, '0')}.png`));
-      expect([img.width, img.height]).toEqual([1024, 192]);
+      expect([img.width, img.height]).toEqual([1920, 352]);
       expect(stats(img).alphaClean).toBe(true);
     }
   });

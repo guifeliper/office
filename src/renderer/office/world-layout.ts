@@ -484,7 +484,7 @@ const FIXED_CLEARANCE: ReadonlySet<string> = (() => {
 
 /** Leisure standing cells. Scatter keeps off them. */
 const LEISURE_CELLS: readonly Cell[] = LEISURE_DEFS.filter(
-  (def) => def.kind === 'woodpile' || def.kind === 'garden',
+  (def) => def.kind === 'woodpile' || def.kind === 'garden' || def.kind === 'fishing',
 );
 
 /** Arrival line: the south path, from the house down to the gate. */

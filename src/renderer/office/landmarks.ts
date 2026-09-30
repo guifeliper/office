@@ -107,6 +107,9 @@ export const WOODPILE_SPOTS: readonly Waypoint[] = spotsOf('woodpile');
 /** In the aisle between the garden beds. */
 export const GARDEN_SPOTS: readonly Waypoint[] = spotsOf('garden');
 
+/** On the shore, facing the pier. */
+export const FISHING_SPOTS: readonly Waypoint[] = spotsOf('fishing');
+
 export interface Placement {
   /** Preferred desk index; the presence director moves to the next free one on collision. */
   deskIndex: number;

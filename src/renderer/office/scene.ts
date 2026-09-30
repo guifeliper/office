@@ -22,6 +22,7 @@ import { GROUND_DEPTH } from './depth';
 import { PROPS, PROP_SPECS, lodgeShellSolid, propBase, terrainAt, type PropKind } from './world-layout';
 import { butterflyFlights, butterflyPose, type ButterflyFlight } from './butterflies';
 import { claimBeds, gardenAction, initialGarden, stepGarden, type GardenState } from './garden-cycle';
+import { fishFrame, initialFish, stepFish, type FishState } from './fish-cycle';
 import { lilyFrame, lilyOffsetY } from './lily-motion';
 import {
   CABIN_COLS,
@@ -89,6 +90,7 @@ export class OfficeScene {
   private cropFrames: Texture[] = [];
   private readonly cropSprites = new Map<string, Sprite>();
   private readonly beds = new Map<string, GardenState>();
+  private readonly fishing = new Map<string, FishState>();
   private ambientMs = 0;
   private flameFrames: Texture[] = [];
   private flameSprites: Sprite[] = [];
@@ -429,6 +431,7 @@ export class OfficeScene {
     const snaps = this.presence.step(deltaMs, this.reducedMotion, Date.now());
     this.lastSnaps = new Map(snaps.map((snap) => [snap.id, snap]));
     this.stepGarden(deltaMs);
+    this.stepFishing(deltaMs);
     this.applySnapshots(snaps, deltaMs);
     if (!this.reducedMotion && this.campfireFrames.length > 1) {
       this.campfireMs += deltaMs;
@@ -468,7 +471,7 @@ export class OfficeScene {
       sprite.root.visible = true;
       place(sprite, snap);
       if (!sprite.root.visible) continue;
-      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap));
+      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap));
     }
     for (const model of this.view.collaborators) {
       const sprite = this.collaborators.get(model.id);
@@ -481,7 +484,7 @@ export class OfficeScene {
       sprite.root.visible = true;
       place(sprite, snap);
       if (!sprite.root.visible) continue;
-      sprite.draw(model, snap, deltaMs);
+      sprite.draw(model, snap, deltaMs, this.gardenPose(model.id, snap), this.fishPose(model.id, snap));
     }
   }
 
@@ -492,6 +495,26 @@ export class OfficeScene {
     const state = this.beds.get(`${bed.col},${bed.row}`);
     if (!state) return null;
     return { action: gardenAction(state.phase), play: !this.reducedMotion && !snap.moving };
+  }
+
+  private fishPose(id: string, snap: PresenceSnapshot): { phase: FishState['phase']; frame: number; play: boolean } | null {
+    if (snap.leisure !== 'fishing' || snap.zone !== 'yard' || snap.moving) return null;
+    const state = this.fishing.get(id);
+    if (!state) return null;
+    return { phase: state.phase, frame: fishFrame(state.phase, state.phaseMs), play: !this.reducedMotion };
+  }
+
+  private stepFishing(deltaMs: number): void {
+    const live = new Set<string>();
+    for (const [id, snap] of this.lastSnaps) {
+      if (snap.leisure !== 'fishing' || snap.zone !== 'yard') continue;
+      live.add(id);
+      const prev = this.fishing.get(id) ?? initialFish();
+      this.fishing.set(id, stepFish(prev, deltaMs, !snap.moving, this.reducedMotion));
+    }
+    for (const id of this.fishing.keys()) {
+      if (!live.has(id)) this.fishing.delete(id);
+    }
   }
 
   private bedFor(id: string): { col: number; row: number } | undefined {

@@ -3,6 +3,7 @@ import { hslToHex } from './assets';
 import type { Facing } from './landmarks';
 import type { ProvenanceBadge } from './projection';
 import type { PresenceSnapshot } from './presence';
+import type { FishPhase } from './fish-cycle';
 import { leisureFrameIndex, type LeisureKind } from './leisure';
 import { depthFromFeet } from './depth';
 import { CAST_CELL, CAST_FEET_ROW } from './cabin-layout';
@@ -28,11 +29,18 @@ export interface CharacterSheets {
   walk: Record<Facing, Texture[]>;
   sit: Record<Facing, Texture>;
   water: Record<Facing, Texture[]>;
-  leisure: Record<LeisureKind, Record<Facing, Texture[]>>;
+  fishing: Record<Facing, Record<FishPhase, Texture[]>>;
+  leisure: Record<Exclude<LeisureKind, 'fishing'>, Record<Facing, Texture[]>>;
 }
 
 export interface GardenPose {
   action: 'hoe' | 'sit' | 'water' | 'idle';
+  play: boolean;
+}
+
+export interface FishPose {
+  phase: FishPhase;
+  frame: number;
   play: boolean;
 }
 
@@ -66,10 +74,10 @@ export class ConsultantSprite {
     this.layoutChrome(model);
   }
 
-  draw(model: SpriteChrome, snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null): void {
+  draw(model: SpriteChrome, snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null, fish?: FishPose | null): void {
     this.root.position.set(Math.round(snap.x), Math.round(snap.y));
     this.root.zIndex = depthFromFeet(snap.y);
-    this.body.texture = this.frameFor(snap, deltaMs, garden);
+    this.body.texture = this.frameFor(snap, deltaMs, garden, fish);
     this.layoutChrome(model);
   }
 
@@ -77,7 +85,11 @@ export class ConsultantSprite {
     this.root.destroy({ children: true });
   }
 
-  private frameFor(snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null): Texture {
+  private frameFor(snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null, fish?: FishPose | null): Texture {
+    if (snap.leisure === 'fishing') {
+      if (snap.moving || !fish) return this.walkOrIdle(snap, deltaMs, snap.moving);
+      return this.fishFrame(snap, fish);
+    }
     if (snap.leisure === 'garden' && garden) return this.gardenFrame(snap, deltaMs, garden);
     if (snap.leisure) {
       const frames = this.sheets.leisure[snap.leisure][snap.facing];
@@ -89,7 +101,11 @@ export class ConsultantSprite {
       return frames[leisureFrameIndex(snap.leisure, this.leisureMs, true)] ?? frames[0]!;
     }
     if (snap.pose === 'sit') return this.sheets.sit[snap.facing];
-    if (!snap.moving) {
+    return this.walkOrIdle(snap, deltaMs, false);
+  }
+
+  private walkOrIdle(snap: PresenceSnapshot, deltaMs: number, walking: boolean): Texture {
+    if (!walking && !snap.moving) {
       const frames = this.sheets.idle[snap.facing];
       // Stale and reduced motion hold frame 0; the pack idle breathes otherwise.
       if (snap.mode === 'hold' || !snap.bob) {
@@ -106,6 +122,12 @@ export class ConsultantSprite {
     }
     const frames = this.sheets.walk[snap.facing];
     return frames[this.walkIndex] ?? frames[0]!;
+  }
+
+  private fishFrame(snap: PresenceSnapshot, fish: FishPose): Texture {
+    const frames = this.sheets.fishing[snap.facing][fish.phase];
+    const index = fish.play ? fish.frame : 0;
+    return frames[index] ?? frames[0]!;
   }
 
   private gardenFrame(snap: PresenceSnapshot, deltaMs: number, garden: GardenPose): Texture {
