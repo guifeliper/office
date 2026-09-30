@@ -30,7 +30,24 @@ export interface CharacterSheets {
   sit: Record<Facing, Texture>;
   water: Record<Facing, Texture[]>;
   fishing: Record<Facing, Record<FishPhase, Texture[]>>;
+  carryIdle: Record<Facing, Texture[]>;
+  carryWalk: Record<Facing, Texture[]>;
+  carryPick: Record<Facing, Texture[]>;
+  net: Record<Facing, Texture[]>;
+  pet: Record<Facing, Texture[]>;
+  /** Six frames in a line. Not four facings. */
+  sleep: Texture[];
   leisure: Record<Exclude<LeisureKind, 'fishing'>, Record<Facing, Texture[]>>;
+}
+
+export type ErrandAction = 'axe' | 'carryPick' | 'carryWalk' | 'net' | 'pet' | 'sleep';
+
+/** One pack frame for a renderer errand. `at` draws the body on a prop (the armchair). */
+export interface ErrandPose {
+  action: ErrandAction;
+  frame: number;
+  whileMoving: boolean;
+  at?: { x: number; y: number };
 }
 
 export interface GardenPose {
@@ -74,10 +91,19 @@ export class ConsultantSprite {
     this.layoutChrome(model);
   }
 
-  draw(model: SpriteChrome, snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null, fish?: FishPose | null): void {
-    this.root.position.set(Math.round(snap.x), Math.round(snap.y));
-    this.root.zIndex = depthFromFeet(snap.y);
-    this.body.texture = this.frameFor(snap, deltaMs, garden, fish);
+  draw(
+    model: SpriteChrome,
+    snap: PresenceSnapshot,
+    deltaMs: number,
+    garden?: GardenPose | null,
+    fish?: FishPose | null,
+    errand?: ErrandPose | null,
+  ): void {
+    const x = errand?.at?.x ?? snap.x;
+    const y = errand?.at?.y ?? snap.y;
+    this.root.position.set(Math.round(x), Math.round(y));
+    this.root.zIndex = depthFromFeet(y);
+    this.body.texture = this.frameFor(snap, deltaMs, garden, fish, errand);
     this.layoutChrome(model);
   }
 
@@ -85,7 +111,14 @@ export class ConsultantSprite {
     this.root.destroy({ children: true });
   }
 
-  private frameFor(snap: PresenceSnapshot, deltaMs: number, garden?: GardenPose | null, fish?: FishPose | null): Texture {
+  private frameFor(
+    snap: PresenceSnapshot,
+    deltaMs: number,
+    garden?: GardenPose | null,
+    fish?: FishPose | null,
+    errand?: ErrandPose | null,
+  ): Texture {
+    if (errand && (errand.whileMoving || !snap.moving)) return this.errandFrame(snap, errand);
     if (snap.leisure === 'fishing') {
       if (snap.moving || !fish) return this.walkOrIdle(snap, deltaMs, snap.moving);
       return this.fishFrame(snap, fish);
@@ -122,6 +155,21 @@ export class ConsultantSprite {
     }
     const frames = this.sheets.walk[snap.facing];
     return frames[this.walkIndex] ?? frames[0]!;
+  }
+
+  private errandFrame(snap: PresenceSnapshot, errand: ErrandPose): Texture {
+    if (errand.action === 'sleep') return this.sheets.sleep[errand.frame] ?? this.sheets.sleep[0]!;
+    const bank = errand.action === 'axe'
+      ? this.sheets.leisure.woodpile
+      : errand.action === 'carryPick'
+        ? this.sheets.carryPick
+        : errand.action === 'carryWalk'
+          ? this.sheets.carryWalk
+          : errand.action === 'net'
+            ? this.sheets.net
+            : this.sheets.pet;
+    const frames = bank[snap.facing];
+    return frames[errand.frame] ?? frames[0]!;
   }
 
   private fishFrame(snap: PresenceSnapshot, fish: FishPose): Texture {

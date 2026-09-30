@@ -130,8 +130,12 @@ write(CABIN, 'door', crop(door, 32, 0, 32, 32));
 
 /**
  * Cast. One strip per look, one row per action, 32×32 cells, pack order south/north/east/west.
- * Rows: idle, walk, sit, axe, hoe, watering, then the fishing cycle
- * (cast 15, wait 4, bite 8, reel 4, catch 4 frames per facing).
+ * Rows: idle, walk, sit, axe, hoe, watering, the fishing cycle
+ * (cast 15, wait 4, bite 8, reel 4, catch 4 frames per facing),
+ * then carrying idle 4, carrying walk 6, pick-up 4, bug net 6, petting 3.
+ * Sleep is the last row: 6 frames, not four facings (see asset-availability).
+ * Folder 22 Flute is 576×32 (18 frames). 18 is not divisible by 4, so it has no
+ * south/north/east/west set. The fourth facing is absent and is not mirrored.
  * The strip is as wide as the cast, 1920.
  */
 const STRIP_W = 1920;
@@ -147,6 +151,13 @@ const ACTIONS = [
   { dir: '12.2. Fishing - Bite', w: 1024, weapon: 'Weapons/1.png', scale: 2 },
   { dir: '12.3. Fishing - Reel', w: 512, weapon: 'Weapons/1.png', scale: 2 },
   { dir: '12.4. Fishing - Catch', w: 512, weapon: 'Weapons/1.png', scale: 2 },
+  { dir: '13. Carrying - Idle', w: 512 },
+  { dir: '13.1 Carrying - Walk', w: 768 },
+  { dir: '13.3 Carrying - Pick Up', w: 512 },
+  { dir: '4. Pickaxe, Hoe and Catching insects', w: 768, weapon: 'Weapons/Bug net.png' },
+  { dir: '20. Petting', w: 384 },
+  // No farm-clothes folder. Skin, hair, and green eyes (resolveLayer) only.
+  { dir: '19. Sleep', w: 192, bare: true },
 ] as const;
 
 const HAIRS = ['Josh', 'Lyria', 'Standard', 'Fawn', 'Sebastian', 'Iridessa', 'Silvermist'] as const;
@@ -171,7 +182,7 @@ for (let i = 0; i < LOOK_COUNT; i += 1) {
     const layers = [
       `Skins/${look.skin}.png`,
       `Eyes/${look.eyes}.png`,
-      `Clothers/Farm/${look.cloth}.png`,
+      ...('bare' in action ? [] : [`Clothers/Farm/${look.cloth}.png`]),
       `Hair's/${look.hair}/${look.hairColor}.png`,
       ...('weapon' in action ? [action.weapon] : []),
     ];
