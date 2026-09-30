@@ -91,6 +91,7 @@ export function App() {
           <div>
             <h1 className="shell__brand">{shell?.productName ?? 'Cursor Office'}</h1>
             <p className="shell__tagline">Viewer-only local observation</p>
+            <p className="shell__credit">Pixel art: Tiny Farm RPG by Maeve Devs</p>
           </div>
           <button
             type="button"

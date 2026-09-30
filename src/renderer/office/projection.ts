@@ -1,5 +1,7 @@
 import type { Collaborator, Consultant } from '../../domain/lifecycle';
 import type { OfficeProjection } from '../../domain/office-reducer';
+import type { Facing } from './landmarks';
+import { placeConsultant } from './landmarks';
 
 export type ProvenanceBadge = 'observed' | 'inferred' | 'ambient' | 'stale';
 
@@ -12,19 +14,40 @@ export interface ConsultantViewModel {
   provenance: Consultant['provenance'];
   badge: ProvenanceBadge;
   ambientEligible: boolean;
+  /** Desk anchor in world pixels. Live position is owned by the presence director. */
   x: number;
   y: number;
+  facing: Facing;
 }
 
 export interface CollaboratorViewModel {
   id: string;
+  /** Paper-doll seed. subagent id when the projection has one; otherwise the collaborator key. */
+  appearanceId: string;
   parentId: string;
+  /** Parent accent, for the small map pip. Null when the parent is not on the floor. */
+  parentHue: number | null;
   label: string;
   workState: Collaborator['workState'];
   provenance: Collaborator['provenance'];
   badge: ProvenanceBadge;
+  /** Preferred desk. Presence assigns a free chair; this is not a follow offset. */
   x: number;
   y: number;
+}
+
+/**
+ * Collaborators render at full size. They are their own character, not a scaled copy of the parent.
+ */
+export const COLLABORATOR_SCALE = 1;
+
+/**
+ * Seed for `appearanceFromSeed`.
+ * `subagentId` stays the same for that subagent and is not the parent's conversation id.
+ * Without one, the projection key (`source:sub:parentId:fingerprint`) is the most stable id we have.
+ */
+export function collaboratorAppearanceId(collab: Pick<Collaborator, 'subagentId' | 'key'>): string {
+  return collab.subagentId ?? collab.key;
 }
 
 export interface OfficeViewModel {
@@ -38,15 +61,16 @@ export function toOfficeViewModel(
   projection: OfficeProjection,
   options: { connected: boolean; width: number; height: number },
 ): OfficeViewModel {
-  const { width, height } = options;
-  const deskY = height * 0.55;
-  const startX = Math.max(80, width * 0.15);
-  const gap = Math.min(160, Math.max(100, (width * 0.7) / Math.max(1, projection.consultants.length)));
+  // Desk anchors are world pixels on the sketch. Viewport size only feeds the camera.
+  void options.width;
+  void options.height;
 
-  const consultants: ConsultantViewModel[] = projection.consultants.map((c, index) => {
+  const consultants: ConsultantViewModel[] = projection.consultants.map((c) => {
+    const id = `${c.sourceId}:${c.conversationId}`;
+    const place = placeConsultant(id);
     const badge = badgeFor(c);
     return {
-      id: `${c.sourceId}:${c.conversationId}`,
+      id,
       conversationId: c.conversationId,
       label: `Consultant · ${c.labelSuffix}`,
       accentHue: c.accentHue,
@@ -54,25 +78,28 @@ export function toOfficeViewModel(
       provenance: c.provenance,
       badge,
       ambientEligible: c.workState === 'idle' && c.provenance === 'observed',
-      x: startX + index * gap,
-      y: deskY,
+      x: place.desk.x,
+      y: place.desk.y,
+      facing: place.desk.facing,
     };
   });
 
   const byParent = new Map(consultants.map((c) => [c.conversationId, c]));
-  const collaborators: CollaboratorViewModel[] = projection.collaborators.map((collab, index) => {
+  const collaborators: CollaboratorViewModel[] = projection.collaborators.map((collab) => {
     const parent = byParent.get(collab.parentConversationId);
-    const px = parent?.x ?? startX;
-    const py = parent?.y ?? deskY;
+    const appearanceId = collaboratorAppearanceId(collab);
+    const place = placeConsultant(appearanceId);
     return {
       id: collab.key,
+      appearanceId,
       parentId: collab.parentConversationId,
+      parentHue: parent?.accentHue ?? null,
       label: collab.collaboratorType,
       workState: collab.workState,
       provenance: collab.provenance,
-      badge: collab.provenance === 'inferred' ? 'inferred' : 'observed',
-      x: px + 36 + (index % 3) * 18,
-      y: py + 28 + Math.floor(index / 3) * 16,
+      badge: collaboratorBadge(collab),
+      x: place.desk.x,
+      y: place.desk.y,
     };
   });
 
@@ -82,6 +109,53 @@ export function toOfficeViewModel(
     waitingForActivity: options.connected && consultants.length === 0,
     connected: options.connected,
   };
+}
+
+function collaboratorBadge(collab: Collaborator): ProvenanceBadge {
+  if (collab.workState === 'stale') return 'stale';
+  if (collab.provenance === 'inferred') return 'inferred';
+  return 'observed';
+}
+
+export interface RosterEntry {
+  id: string;
+  label: string;
+  badge: ProvenanceBadge;
+  children: RosterEntry[];
+}
+
+/** Consultants, with their collaborators indented underneath. The badge color matches the map dot. */
+export function rosterRows(projection: OfficeProjection): RosterEntry[] {
+  const byParent = new Map<string, Collaborator[]>();
+  for (const collab of projection.collaborators) {
+    const list = byParent.get(collab.parentConversationId) ?? [];
+    list.push(collab);
+    byParent.set(collab.parentConversationId, list);
+  }
+  const known = new Set(projection.consultants.map((c) => c.conversationId));
+  const rows: RosterEntry[] = projection.consultants.map((consultant) => ({
+    id: `${consultant.sourceId}:${consultant.conversationId}`,
+    label: `Consultant · ${consultant.labelSuffix}`,
+    badge: badgeFor(consultant),
+    children: (byParent.get(consultant.conversationId) ?? []).map((collab) => ({
+      id: collab.key,
+      label: collab.collaboratorType,
+      badge: collaboratorBadge(collab),
+      children: [],
+    })),
+  }));
+  for (const [parentId, collabs] of byParent) {
+    if (known.has(parentId)) continue;
+    for (const collab of collabs) {
+      rows.push({
+        id: collab.key,
+        label: collab.collaboratorType,
+        badge: collaboratorBadge(collab),
+        children: [],
+      });
+    }
+  }
+  return rows;
 }
 
 function badgeFor(c: Consultant): ProvenanceBadge {

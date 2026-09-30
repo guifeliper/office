@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Collaborator, Consultant } from '../../src/domain/lifecycle';
-import { AmbientDirector } from '../../src/renderer/office/ambient-director';
-import { toOfficeViewModel } from '../../src/renderer/office/projection';
+import { placeConsultant } from '../../src/renderer/office/landmarks';
+import { appearanceFromSeed, appearanceKey } from '../../src/renderer/office/paper-doll';
+import {
+  COLLABORATOR_SCALE,
+  collaboratorAppearanceId,
+  rosterRows,
+  toOfficeViewModel,
+} from '../../src/renderer/office/projection';
 
 function consultant(partial: Partial<Consultant> & Pick<Consultant, 'conversationId'>): Consultant {
   return {
@@ -53,14 +59,27 @@ describe('office projection view model', () => {
     expect(view.consultants[2]!.badge).toBe('stale');
     expect(view.consultants.map((c) => c.label).join(' ')).not.toContain('c1');
     expect(view.consultants[0]!.accentHue).not.toBe(view.consultants[1]!.accentHue);
+    expect(view.consultants[0]!.x).toBe(placeConsultant(view.consultants[0]!.id).desk.x);
+    expect(view.consultants[0]!.y).toBe(placeConsultant(view.consultants[0]!.id).desk.y);
   });
 
-  it('groups collaborators near parents and leaves without inventing occupants when empty', () => {
-    const parent = consultant({ conversationId: 'parent', labelSuffix: 'PAR1' });
+  it('keeps desk anchors in world space when the viewport changes', () => {
+    const projection = {
+      consultants: [consultant({ conversationId: 'c1', labelSuffix: 'AAAA' })],
+      collaborators: [],
+    };
+    const small = toOfficeViewModel(projection, { connected: true, width: 800, height: 600 });
+    const large = toOfficeViewModel(projection, { connected: true, width: 1600, height: 1000 });
+    expect(large.consultants[0]!.x).toBe(small.consultants[0]!.x);
+    expect(large.consultants[0]!.y).toBe(small.consultants[0]!.y);
+  });
+
+  it('seeds a collaborator from their own id, at full size, indented under the parent', () => {
+    const parent = consultant({ conversationId: 'parent-conversation', labelSuffix: 'PAR1', accentHue: 40 });
     const collab: Collaborator = {
-      key: 'cursor:sub:s1',
-      parentConversationId: 'parent',
-      subagentId: 's1',
+      key: 'cursor:sub:subagent-9',
+      parentConversationId: 'parent-conversation',
+      subagentId: 'subagent-9',
       conversationId: null,
       collaboratorType: 'explore',
       workState: 'active',
@@ -73,9 +92,29 @@ describe('office projection view model', () => {
       { consultants: [parent], collaborators: [collab] },
       { connected: true, width: 1000, height: 700 },
     );
-    expect(withCollab.collaborators).toHaveLength(1);
-    expect(withCollab.collaborators[0]!.x).toBeGreaterThan(withCollab.consultants[0]!.x);
-    expect(withCollab.collaborators[0]!.label).toBe('explore');
+    const child = withCollab.collaborators[0]!;
+    expect(child.appearanceId).toBe('subagent-9');
+    expect(child.appearanceId).not.toBe(parent.conversationId);
+    expect(appearanceKey(appearanceFromSeed(child.appearanceId))).not.toBe(
+      appearanceKey(appearanceFromSeed(parent.conversationId)),
+    );
+    expect(appearanceKey(appearanceFromSeed(child.appearanceId))).toBe(
+      appearanceKey(appearanceFromSeed('subagent-9')),
+    );
+    expect(child.x).toBe(placeConsultant(child.appearanceId).desk.x);
+    expect(child.y).toBe(placeConsultant(child.appearanceId).desk.y);
+    expect(child.parentHue).toBe(40);
+    expect(COLLABORATOR_SCALE).toBe(1);
+
+    const rows = rosterRows({ consultants: [parent], collaborators: [collab] });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.children).toHaveLength(1);
+    expect(rows[0]!.children[0]!.label).toBe('explore');
+    expect(rows[0]!.children[0]!.badge).toBe(rows[0]!.badge);
+
+    const withoutSubagent: Collaborator = { ...collab, subagentId: null, key: 'cursor:sub:parent-conversation:fp1' };
+    expect(collaboratorAppearanceId(withoutSubagent)).toBe('cursor:sub:parent-conversation:fp1');
+    expect(collaboratorAppearanceId(withoutSubagent)).not.toBe('parent-conversation');
 
     const empty = toOfficeViewModel(
       { consultants: [], collaborators: [] },
@@ -83,38 +122,5 @@ describe('office projection view model', () => {
     );
     expect(empty.waitingForActivity).toBe(true);
     expect(empty.consultants).toHaveLength(0);
-  });
-
-  it('ambient director never mutates domain timestamps and respects reduced motion', () => {
-    const lastObservedAt = 5000;
-    const leaseExpiresAt = 9000;
-    const c = consultant({
-      conversationId: 'idle-1',
-      workState: 'idle',
-      provenance: 'observed',
-      lastObservedAt,
-      leaseExpiresAt,
-      labelSuffix: 'IDLE',
-    });
-    const view = toOfficeViewModel(
-      { consultants: [c], collaborators: [] },
-      { connected: true, width: 800, height: 600 },
-    );
-
-    const director = new AmbientDirector();
-    const moving = director.tick(16, [view.consultants[0]!.id], false);
-    expect(moving[0]!.behavior).toBeTruthy();
-    expect(Math.abs(moving[0]!.offsetX) + Math.abs(moving[0]!.offsetY)).toBeGreaterThan(0);
-
-    const resting = director.tick(16, [view.consultants[0]!.id], true);
-    expect(resting[0]!.behavior).toBe('rest');
-    expect(resting[0]!.offsetX).toBe(0);
-
-    // Domain object untouched.
-    expect(c.lastObservedAt).toBe(lastObservedAt);
-    expect(c.leaseExpiresAt).toBe(leaseExpiresAt);
-
-    director.interrupt(view.consultants[0]!.id);
-    expect(director.tick(16, [], false)).toHaveLength(0);
   });
 });

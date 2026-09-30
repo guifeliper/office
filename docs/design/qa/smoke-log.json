@@ -1,0 +1,227 @@
+[
+  {
+    "t": "2026-09-29T15:22:00.030Z",
+    "step": "page",
+    "url": "http://localhost:5173/"
+  },
+  {
+    "t": "2026-09-29T15:22:00.679Z",
+    "step": "shot",
+    "name": "00-before.png",
+    "aria": "Office with 15 consultants",
+    "proj": {
+      "count": 15,
+      "workState": null,
+      "provenance": null,
+      "labelSuffix": null
+    },
+    "db": null
+  },
+  {
+    "t": "2026-09-29T15:22:00.689Z",
+    "step": "ingest",
+    "hook": "beforeSubmitPrompt",
+    "status": 204,
+    "generation": "gen-qa-smoke-1"
+  },
+  {
+    "t": "2026-09-29T15:22:00.694Z",
+    "step": "appeared",
+    "count": 16,
+    "workState": "active",
+    "provenance": "observed",
+    "labelSuffix": "OO53"
+  },
+  {
+    "t": "2026-09-29T15:22:01.178Z",
+    "step": "shot",
+    "name": "01-arrive.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-1",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:04.185Z",
+    "step": "shot",
+    "name": "02-walk.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-1",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:04.188Z",
+    "step": "ingest",
+    "hook": "preToolUse",
+    "status": 204,
+    "generation": "gen-qa-smoke-1"
+  },
+  {
+    "t": "2026-09-29T15:22:08.699Z",
+    "step": "shot",
+    "name": "03-desk.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-1",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:08.702Z",
+    "step": "ingest",
+    "hook": "stop",
+    "status": 204,
+    "generation": "gen-qa-smoke-1"
+  },
+  {
+    "t": "2026-09-29T15:22:08.704Z",
+    "step": "idle",
+    "count": 16,
+    "workState": "idle",
+    "provenance": "observed",
+    "labelSuffix": "OO53"
+  },
+  {
+    "t": "2026-09-29T15:22:09.193Z",
+    "step": "shot",
+    "name": "04-standby.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "idle",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "idle",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-1",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:16.688Z",
+    "step": "shot",
+    "name": "05-leisure.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "idle",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "idle",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-1",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:16.690Z",
+    "step": "ingest",
+    "hook": "beforeSubmitPrompt",
+    "status": 204,
+    "generation": "gen-qa-smoke-2"
+  },
+  {
+    "t": "2026-09-29T15:22:16.695Z",
+    "step": "return",
+    "count": 16,
+    "workState": "active",
+    "provenance": "observed",
+    "labelSuffix": "OO53"
+  },
+  {
+    "t": "2026-09-29T15:22:17.185Z",
+    "step": "shot",
+    "name": "06-return-start.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-2",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:20.192Z",
+    "step": "shot",
+    "name": "07-return-walk.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-2",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:25.706Z",
+    "step": "shot",
+    "name": "08-return-desk.png",
+    "aria": "Office with 16 consultants",
+    "proj": {
+      "count": 16,
+      "workState": "active",
+      "provenance": "observed",
+      "labelSuffix": "OO53"
+    },
+    "db": {
+      "work_state": "active",
+      "provenance": "observed",
+      "current_generation_id": "gen-qa-smoke-2",
+      "label_suffix": "OO53"
+    }
+  },
+  {
+    "t": "2026-09-29T15:22:25.706Z",
+    "step": "summary",
+    "statuses": [
+      204,
+      204,
+      204,
+      204
+    ],
+    "errors": []
+  }
+]

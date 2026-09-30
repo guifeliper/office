@@ -1,0 +1,106 @@
+{
+  "pilot": {
+    "1x sem linha #201B0F no pescoço": true,
+    "1x camisa maior cluster": "#2f5874 44px Δ71",
+    "1x camisa Δ≥40 vs madeira": true,
+    "1x alpha 0/255": true,
+    "1x paleta fechada por material": true,
+    "1x madeira opaca dos 2 lados do quadril": "2,2,2,2,2,2 → ok",
+    "1x ≥4 px de camisa sobre a borda sul da mesa": "38 → ok",
+    "2x pescoço sem tinta": true,
+    "2x uma cabeça só": true,
+    "2x cluster mínimo 2×2 fora do contorno (4 frames)": true,
+    "2x fileira 56 encosta no assento": true,
+    "caixa opaca": "x16–31 y28–55 (16×28)"
+  },
+  "variants": [
+    {
+      "appearance": {
+        "skin": 1,
+        "hair": 3,
+        "hairShape": 1,
+        "outfit": 0,
+        "hat": 0,
+        "accessory": 2
+      },
+      "1x sem linha #201B0F no pescoço": true,
+      "1x camisa maior cluster": "#fff8f1 44px Δ49",
+      "1x camisa Δ≥40 vs madeira": true,
+      "1x alpha 0/255": true,
+      "1x paleta fechada por material": true,
+      "1x madeira opaca dos 2 lados do quadril": "2,2,2,2,2,2 → ok",
+      "1x ≥4 px de camisa sobre a borda sul da mesa": "26 → ok",
+      "2x pescoço sem tinta": true,
+      "2x uma cabeça só": true,
+      "2x cluster mínimo 2×2 fora do contorno (4 frames)": true,
+      "2x fileira 56 encosta no assento": true,
+      "caixa opaca": "x16–31 y24–55 (16×32)"
+    },
+    {
+      "appearance": {
+        "skin": 3,
+        "hair": 1,
+        "hairShape": 2,
+        "outfit": 1,
+        "hat": 1,
+        "accessory": 0
+      },
+      "1x sem linha #201B0F no pescoço": true,
+      "1x camisa maior cluster": "#2a4a26 44px Δ88",
+      "1x camisa Δ≥40 vs madeira": true,
+      "1x alpha 0/255": true,
+      "1x paleta fechada por material": true,
+      "1x madeira opaca dos 2 lados do quadril": "2,2,2,2,2,2 → ok",
+      "1x ≥4 px de camisa sobre a borda sul da mesa": "38 → ok",
+      "2x pescoço sem tinta": true,
+      "2x uma cabeça só": true,
+      "2x cluster mínimo 2×2 fora do contorno (4 frames)": true,
+      "2x fileira 56 encosta no assento": true,
+      "caixa opaca": "x14–33 y24–55 (20×32)"
+    },
+    {
+      "appearance": {
+        "skin": 4,
+        "hair": 4,
+        "hairShape": 0,
+        "outfit": 3,
+        "hat": 3,
+        "accessory": 0
+      },
+      "1x sem linha #201B0F no pescoço": true,
+      "1x camisa maior cluster": "#8a4830 44px Δ68",
+      "1x camisa Δ≥40 vs madeira": true,
+      "1x alpha 0/255": true,
+      "1x paleta fechada por material": true,
+      "1x madeira opaca dos 2 lados do quadril": "2,2,2,2,2,2 → ok",
+      "1x ≥4 px de camisa sobre a borda sul da mesa": "38 → ok",
+      "2x pescoço sem tinta": true,
+      "2x uma cabeça só": true,
+      "2x cluster mínimo 2×2 fora do contorno (4 frames)": true,
+      "2x fileira 56 encosta no assento": true,
+      "caixa opaca": "x12–35 y24–55 (24×32)"
+    },
+    {
+      "appearance": {
+        "skin": 2,
+        "hair": 2,
+        "hairShape": 0,
+        "outfit": 2,
+        "hat": 2,
+        "accessory": 1
+      },
+      "1x sem linha #201B0F no pescoço": true,
+      "1x camisa maior cluster": "#2f5874 44px Δ71",
+      "1x camisa Δ≥40 vs madeira": true,
+      "1x alpha 0/255": true,
+      "1x paleta fechada por material": true,
+      "1x madeira opaca dos 2 lados do quadril": "2,2,2,2,2,2 → ok",
+      "1x ≥4 px de camisa sobre a borda sul da mesa": "38 → ok",
+      "2x pescoço sem tinta": true,
+      "2x uma cabeça só": true,
+      "2x cluster mínimo 2×2 fora do contorno (4 frames)": true,
+      "2x fileira 56 encosta no assento": true,
+      "caixa opaca": "x16–31 y24–55 (16×32)"
+    }
+  ]
+}

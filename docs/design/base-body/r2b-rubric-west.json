@@ -1,0 +1,42 @@
+{
+  "1 proporção": {
+    "value": "altura 32 (y24–55), cabeça 15 (0.469), pescoço 2, cabeça 15 × tronco 8",
+    "pass": true
+  },
+  "2 cabelo": {
+    "value": "brilho 12px x22–25 y24–26 (1 componente); claro 12 médio 103 escuro 19 (claro 9%)",
+    "pass": true
+  },
+  "3 rosto": {
+    "value": "perfil: olho x19+18 y33; sobrancelha sim; nariz 2px em x16; boca x17–18 y36 na frente; ink no rosto 1. Segundo olho e gap não se aplicam de perfil",
+    "pass": true
+  },
+  "4 braço e mão": {
+    "value": "perfil: mão x18–20 y45–47, 2px à frente do peito, manga-escura true; largura na mão 10 × abaixo 8. Braço de trás oculto pelo tronco: o segundo dente não existe de perfil",
+    "pass": true
+  },
+  "5 dobras": {
+    "value": "shirt 2 clusters [6px w4, 8px w5] fitas1px 0 | pants 2 clusters [6px w2, 6px w2] fitas1px 0",
+    "pass": true
+  },
+  "6 hue shift": {
+    "value": "skin Δ(B−R) +46, L 213>177>142 | shirt Δ(B−R) +36, L 116>79>47 | pants Δ(B−R) +46, L 218>178>121 | hair Δ(B−R) +92, L 160>80>52",
+    "pass": true
+  },
+  "7 sel-out": {
+    "value": "ink 1 px; aresta norte sem ink 26 px; borda sul/lateral no tom escuro 34/74",
+    "pass": true
+  },
+  "8 sombra de contato": {
+    "value": "grama 24/24, caminho 24/24, fileira 56 do PNG 0 px, sombra com cor de sapato/ink false",
+    "pass": true
+  },
+  "9 leitura a 1×": {
+    "value": "itens 1–8 verdadeiros; leitura a olho nos compostos 1×: cabeça, um olho, nariz, uma mão, pés separados e chão apontáveis",
+    "pass": true
+  },
+  "10 original e limpo": {
+    "value": "16 cores, alpha sujo 0, hex iguais à referência 0, IoU piloto 0.376, camisa roxo-índigo + calça cáqui",
+    "pass": true
+  }
+}

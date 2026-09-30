@@ -1,29 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { OfficeProjection } from '../../domain/office-reducer';
-import { toOfficeViewModel } from './projection';
+import { rosterRows } from './projection';
 import { OfficeScene } from './scene';
+import { viewFromLatest, type LatestOfficeProps } from './view-from-latest';
 
 export interface OfficeCanvasProps {
   projection: OfficeProjection;
   connected: boolean;
-}
-
-export type LatestOfficeProps = {
-  projection: OfficeProjection;
-  connected: boolean;
-};
-
-/** Pure helper used by mount/resize handlers — always read from latest, never a stale closure. */
-export function viewFromLatest(
-  latest: LatestOfficeProps,
-  width: number,
-  height: number,
-) {
-  return toOfficeViewModel(latest.projection, {
-    connected: latest.connected,
-    width,
-    height,
-  });
 }
 
 export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
@@ -80,18 +63,53 @@ export function OfficeCanvas({ projection, connected }: OfficeCanvasProps) {
   }, [projection, connected]);
 
   return (
-    <div
-      ref={hostRef}
-      className="office-canvas"
-      data-testid="office-canvas"
-      role="img"
-      aria-label={
-        connected
-          ? projection.consultants.length === 0
-            ? 'Office waiting for Cursor activity'
-            : `Office with ${projection.consultants.length} consultants`
-          : 'Office disconnected from Cursor observer'
-      }
-    />
+    <div className="office-frame">
+      <div
+        ref={hostRef}
+        className="office-canvas"
+        data-testid="office-canvas"
+        role="img"
+        aria-label={
+          connected
+            ? projection.consultants.length === 0
+              ? 'Office waiting for Cursor activity'
+              : `Office with ${projection.consultants.length} consultants`
+            : 'Office disconnected from Cursor observer'
+        }
+      />
+      {(projection.consultants.length > 0 || projection.collaborators.length > 0) && (
+        <ol className="office-roster" data-testid="office-roster">
+          {rosterRows(projection).map((row) => (
+            <li key={row.id}>
+              <span className="roster-row">
+                <span className={`roster-mark is-${row.badge}`} />
+                {row.label}
+              </span>
+              {row.children.length > 0 && (
+                <ol className="roster-children">
+                  {row.children.map((child) => (
+                    <li key={child.id}>
+                      <span className="roster-row">
+                        <span className={`roster-mark is-${child.badge}`} />
+                        {child.label}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      <button
+        type="button"
+        className="office-fit"
+        data-testid="fit-world"
+        title="Fit world (0)"
+        onClick={() => sceneRef.current?.fit()}
+      >
+        Fit world
+      </button>
+    </div>
   );
 }
