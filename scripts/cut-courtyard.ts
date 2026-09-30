@@ -165,6 +165,12 @@ write('lodge-roof', lodgeRoof);
 write('lodge-door', crop(sheet('Objects/Exterior/Houses/Door, windows, and chimney/Door.png'), 0, 3, 48, 23), true);
 // Premade cottage: orange walls, brown roof, stone chimney, round attic window, green awning.
 write('lodge-house', sheet('Objects/Exterior/Houses/10.png'), true);
+write('fishman', crop(sheet('Objects/Exterior/Houses/NPCS houses/Fishman/Fishman house.png'), 0, 0, 80, 112), true);
+const maple = sheet('Objects/Tree/Common/No Shadow/Maple Tree.png');
+write('maple-canopy-0', crop(maple, 0, 49, 32, 27));
+write('maple-canopy-1', crop(maple, 32, 49, 32, 27));
+write('maple-canopy-2', crop(maple, 128, 49, 32, 27));
+write('maple-trunk', crop(maple, 0, 76, 32, 18));
 
 const fire = sheet('Objects/Exterior/Mine and Dungeon/bonfire.png');
 for (let i = 0; i < 6; i += 1) write(`bonfire-${i}`, crop(fire, i * 16, 0, 16, 32), true);

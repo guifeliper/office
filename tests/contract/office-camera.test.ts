@@ -5,11 +5,11 @@ import { WORLD } from '../../src/renderer/office/landmarks';
 describe('map camera', () => {
   it('fits with the largest integer scale that fits and accepts a margin', () => {
     const camera = new MapCamera();
-    camera.fit(2700, 1600, WORLD.width, WORLD.height);
+    camera.fit(2200, 2100, WORLD.width, WORLD.height);
     expect(camera.scale).toBe(2);
     expect(Number.isInteger(camera.x)).toBe(true);
     expect(Number.isInteger(camera.y)).toBe(true);
-    expect(camera.x).toBe(Math.round((2700 - WORLD.width * 2) / 2));
+    expect(camera.x).toBe(Math.round((2200 - WORLD.width * 2) / 2));
 
     camera.fit(900, 600, WORLD.width, WORLD.height);
     expect(camera.scale).toBe(1);

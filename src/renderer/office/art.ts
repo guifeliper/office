@@ -40,6 +40,7 @@ export const PROP_URL: Record<PropKind, { base: string; foreground?: string }> =
   pier: { base: yard('pier.png') },
   sandcastle: { base: yard('sandcastle.png') },
   waterfall: { base: yard('waterfall.png') },
+  fishman: { base: yard('fishman.png') },
 };
 
 /** Three maple crowns from Maple Tree.png, row y=49. */

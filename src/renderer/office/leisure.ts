@@ -62,11 +62,11 @@ export function preferredLeisureKind(id: string): LeisureKind {
 export const LEISURE_DEFS: readonly LeisureDef[] = [
   ...HEARTH_CHAIR_CELLS.map((c) => ({ kind: 'hearth' as const, ...c, facing: 'north' as const })),
   ...COFFEE_CELLS.map((c) => ({ kind: 'coffee' as const, ...c, facing: 'north' as const })),
-  { kind: 'woodpile', col: 26, row: 15, facing: 'north' },
-  { kind: 'woodpile', col: 28, row: 16, facing: 'north' },
-  { kind: 'garden', col: 23, row: 24, facing: 'south' },
-  { kind: 'garden', col: 23, row: 25, facing: 'south' },
-  { kind: 'garden', col: 23, row: 28, facing: 'south' },
+  { kind: 'woodpile', col: 14, row: 24, facing: 'north' },
+  { kind: 'woodpile', col: 18, row: 24, facing: 'north' },
+  { kind: 'garden', col: 17, row: 35, facing: 'south' },
+  { kind: 'garden', col: 17, row: 36, facing: 'south' },
+  { kind: 'garden', col: 17, row: 39, facing: 'south' },
 ];
 
 export const LEISURE_CAPACITY: Record<LeisureKind, number> = {

@@ -13,7 +13,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const PACK_GREEN = 0x7ec433;
 const PACK_DARK = 0x54b033;
 const PACK_WATER = 0x0092dd;
-const HEX_RUN = '7ec4337ec4337ec433';
+const HEX_RUN = '7ec433'.repeat(3);
 
 const FORBIDDEN = [
   /^src\/renderer\/office\/art\/yard\//,

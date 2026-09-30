@@ -5,8 +5,8 @@
  */
 
 export const TILE = 16;
-export const COLS = 80;
-export const ROWS = 45;
+export const COLS = 64;
+export const ROWS = 64;
 
 export type Terrain = 'void' | 'grass' | 'path' | 'sand' | 'water' | 'floor' | 'wall';
 
@@ -45,7 +45,8 @@ export type PropKind =
   | 'canoe'
   | 'pier'
   | 'sandcastle'
-  | 'waterfall';
+  | 'waterfall'
+  | 'fishman';
 
 /**
  * - `none`: base sprite only.
@@ -107,6 +108,8 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   pier: { span: 8, blocks: [], foreground: 'none' },
   sandcastle: { span: 1, blocks: row(1), foreground: 'none' },
   waterfall: { span: 4, blocks: [], foreground: 'none' },
+  /** Left half of Fishman house.png. Five tiles wide, solid so the pier path goes around it. */
+  fishman: { span: 5, blocks: [...row(5), ...row(5, -1), ...row(5, -2)], foreground: 'none' },
 };
 
 /**
@@ -116,7 +119,7 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
 export const TRUNK_HEIGHT = 18;
 
 /** Campfire heart. The warm pool is Chebyshev ≤ 2 from here, so it stays a puddle. */
-export const CAMPFIRE_CELL = { col: 30, row: 13 } as const;
+export const CAMPFIRE_CELL = { col: 16, row: 24 } as const;
 
 export function inCampfireGlow(col: number, rowIndex: number): boolean {
   return Math.max(Math.abs(col - CAMPFIRE_CELL.col), Math.abs(rowIndex - CAMPFIRE_CELL.row)) <= 2;
@@ -133,37 +136,30 @@ export interface Cell {
   row: number;
 }
 
-/** Island in the ocean. The coast radius wobbles, and the north shore stays below row 5. */
-const ISLAND = { cx: 40, cy: 22, rx: 31, ry: 16 } as const;
-const POND = { cx: 40, cy: 12, rx: 6, ry: 2.2 } as const;
+/** Round island. Water stays on every side; the old 80×45 frame had flattened this into a strip. */
+const ISLAND = { cx: 32, cy: 34, rx: 22, ry: 20 } as const;
 
 /**
  * Cottage footprint. The sprite is the premade house; this box is the solid shell.
  * The door cell is the step. Cabana Norte stays the 24×18 interior.
  */
-export const LODGE = { left: 38, right: 41, top: 17, bottom: 21, doorCols: [40] } as const;
+export const LODGE = { left: 30, right: 33, top: 28, bottom: 32, doorCols: [32] } as const;
 
-/** Sand paths: south gate to the house, then west to the garden, northwest to the fire, north to the pond. */
+/** Sand paths: south beach to the house, west to the garden, northwest to the fire, east to the fishman. */
 const PATHS: readonly (readonly [number, number, number, number])[] = [
-  [40, 40, 37, 33],
-  [37, 33, 43, 27],
-  [43, 27, 40, 22],
-  [40, 25, 30, 23],
-  [30, 23, 22, 26],
-  [36, 20, 30, 16],
-  [30, 16, 28, 13],
-  [38, 18, 34, 14],
-  [34, 14, 40, 12],
+  [32, 58, 32, 33],
+  [32, 36, 18, 34],
+  [30, 30, 16, 25],
+  [32, 30, 32, 22],
+  [34, 34, 48, 44],
 ];
-const PLAZA = { cx: 40, cy: 25, r: 2.4 } as const;
+const PLAZA = { cx: 32, cy: 36, r: 2.2 } as const;
 
-/** 1.0 sits on the base ellipse. The north factor keeps row 5 in the ocean. Lobes keep the coast irregular. */
+/** A little wobble so the coast is an oval, not a stamp. No north squash: that made the strip. */
 function coastScale(angle: number): number {
-  const scale = 0.9
-    + 0.16 * Math.sin(angle * 2 + 0.4)
-    + 0.11 * Math.sin(angle * 3 + 1.2)
-    + 0.07 * Math.cos(angle * 5 + 0.6);
-  return Math.sin(angle) < 0 ? scale * 0.8 : scale;
+  return 0.96
+    + 0.07 * Math.sin(angle * 3 + 0.5)
+    + 0.04 * Math.cos(angle * 5 + 0.2);
 }
 
 function inIslandEllipse(col: number, rowIndex: number): boolean {
@@ -175,21 +171,17 @@ function inIslandEllipse(col: number, rowIndex: number): boolean {
 
 /** Coast features laid over the ellipse, so the outline reads as an island, not a lozenge. */
 const PENINSULAS: readonly { cx: number; cy: number; rx: number; ry: number }[] = [
-  { cx: 73, cy: 23.5, rx: 5, ry: 1.6 },
-  { cx: 14, cy: 33, rx: 4.5, ry: 1.5 },
+  { cx: 54, cy: 46, rx: 8, ry: 5.5 },
 ];
 const BAYS: readonly { cx: number; cy: number; r: number }[] = [
-  { cx: 15.5, cy: 24.5, r: 1.8 },
-  { cx: 63, cy: 19.5, r: 2.4 },
-  { cx: 60, cy: 31.5, r: 2.4 },
+  { cx: 22, cy: 50, r: 3.4 },
 ];
 /** Top-left cell of each 3×2 islet. Each carries one pack stone. */
 export const ISLETS: readonly Cell[] = [
-  { col: 8, row: 19 },
-  { col: 6, row: 28 },
-  { col: 70, row: 14 },
-  { col: 67, row: 35 },
-  { col: 23, row: 37 },
+  { col: 4, row: 18 },
+  { col: 6, row: 48 },
+  { col: 54, row: 8 },
+  { col: 56, row: 56 },
 ];
 
 function inCoastFeature(col: number, rowIndex: number): boolean | null {
@@ -214,14 +206,14 @@ const LAND_MASK = (() => {
     for (let c = 0; c < COLS; c += 1) {
       const feature = inCoastFeature(c, r);
       const land = feature ?? inIslandEllipse(c, r);
-      if (land && !inPond(c, r)) grid[r * COLS + c] = 1;
+      if (land) grid[r * COLS + c] = 1;
     }
   }
   for (let pass = 0; pass < 2; pass += 1) {
     const next = grid.slice();
     for (let r = 1; r < ROWS - 1; r += 1) {
       for (let c = 1; c < COLS - 1; c += 1) {
-        if (inPond(c, r) || inCoastFeature(c, r) === false) {
+        if (inCoastFeature(c, r) === false) {
           next[r * COLS + c] = 0;
           continue;
         }
@@ -250,13 +242,12 @@ function inIsland(col: number, rowIndex: number): boolean {
  * with the lower grass as the base layer under the hole.
  */
 const TERRACES: readonly { cx: number; cy: number; rx: number; ry: number }[] = [
-  { cx: 26, cy: 15, rx: 8, ry: 4.2 },
-  { cx: 56, cy: 24, rx: 7.5, ry: 4 },
-  { cx: 22, cy: 28, rx: 6, ry: 3.2 },
+  { cx: 46, cy: 28, rx: 5, ry: 3.2 },
+  { cx: 18, cy: 40, rx: 5, ry: 3 },
 ];
 
 function inTerrace(col: number, rowIndex: number): boolean {
-  if (!inIsland(col, rowIndex) || onPath(col, rowIndex) || inBeach(col, rowIndex) || inPond(col, rowIndex)) return false;
+  if (!inIsland(col, rowIndex) || onPath(col, rowIndex) || inBeach(col, rowIndex)) return false;
   if (col >= LODGE.left - 1 && col <= LODGE.right + 1 && rowIndex >= LODGE.top - 1 && rowIndex <= LODGE.bottom + 1) return false;
   return TERRACES.some((blob) => {
     const dx = (col + 0.5 - blob.cx) / blob.rx;
@@ -267,7 +258,7 @@ function inTerrace(col: number, rowIndex: number): boolean {
 
 /** 0 ocean and pond, 1 the field, 2 a raised grass ledge. */
 export function elevationAt(col: number, rowIndex: number): 0 | 1 | 2 {
-  if (!inIsland(col, rowIndex) || inPond(col, rowIndex)) return 0;
+  if (!inIsland(col, rowIndex)) return 0;
   return inTerrace(col, rowIndex) ? 2 : 1;
 }
 
@@ -275,7 +266,7 @@ export function elevationAt(col: number, rowIndex: number): 0 | 1 | 2 {
  * South face of the north plateau. The cliff sheet only opens south, so this is
  * the one place it is used. The ocean coast stays a grass bank.
  */
-const NORTH_FACE = { row: 14, left: 30, right: 52, gapLeft: 36, gapRight: 39 } as const;
+const NORTH_FACE = { row: 18, left: 22, right: 44, gapLeft: 30, gapRight: 33 } as const;
 
 function inNorthPool(col: number, rowIndex: number): boolean {
   if (rowIndex < NORTH_FACE.row || rowIndex > NORTH_FACE.row + 2) return false;
@@ -307,15 +298,6 @@ export function cliffRunAt(col: number, rowIndex: number): boolean {
   return run >= 4;
 }
 
-function inPond(col: number, rowIndex: number): boolean {
-  const lobe = (cx: number, cy: number, rx: number, ry: number) => {
-    const dx = (col + 0.5 - cx) / rx;
-    const dy = (rowIndex + 0.5 - cy) / ry;
-    return dx * dx + dy * dy <= 1;
-  };
-  return lobe(POND.cx, POND.cy, POND.rx, POND.ry) || lobe(35, 11, 3.2, 1.8);
-}
-
 const PATH_HALF_WIDTH = 1;
 
 /** Cells from a cell center to the nearest path centerline; the plaza counts as its rim. */
@@ -334,6 +316,7 @@ export function pathDistance(col: number, rowIndex: number): number {
 }
 
 function onPath(col: number, rowIndex: number): boolean {
+  if (lodgeShellSolid(col, rowIndex)) return false;
   if (rowIndex === LODGE.bottom && col === LODGE.doorCols[0]) return true;
   const d = pathDistance(col, rowIndex);
   if (d <= 0.65) return true;
@@ -355,12 +338,12 @@ export function lodgeShellSolid(col: number, rowIndex: number): boolean {
  * South cove. Deeper in the middle, a thin sand lip at the sides, so the beach is not a rectangle.
  */
 function inBeach(col: number, rowIndex: number): boolean {
-  if (!inIsland(col, rowIndex) || rowIndex < ISLAND.cy + 6) return false;
-  const along = Math.abs(col - 40);
-  if (along > 8) return false;
+  if (!inIsland(col, rowIndex) || rowIndex < ISLAND.cy + 10) return false;
+  const along = Math.abs(col - ISLAND.cx);
+  if (along > 10) return false;
   const edge = southEdge(col);
   if (edge < 0) return false;
-  const depth = 2 + Math.round(2 * (1 - along / 8));
+  const depth = 3 + Math.round(2 * (1 - along / 10));
   return rowIndex >= edge - depth;
 }
 
@@ -368,7 +351,6 @@ export function terrainAt(col: number, rowIndex: number): Terrain {
   if (col < 0 || rowIndex < 0 || col >= COLS || rowIndex >= ROWS) return 'void';
   if (!inIsland(col, rowIndex)) return 'water';
   if (inNorthPool(col, rowIndex)) return 'water';
-  if (inPond(col, rowIndex)) return 'water';
   if (onPath(col, rowIndex)) return 'path';
   if (inBeach(col, rowIndex)) return 'sand';
   return 'grass';
@@ -381,8 +363,8 @@ function southEdge(col: number): number {
 }
 
 /** Gate passage cells in the south fence. Consultants spawn here. */
-export const GATE_COLS = [39, 40] as const;
-export const GATE_ROW = southEdge(40);
+export const GATE_COLS = [31, 32] as const;
+export const GATE_ROW = southEdge(GATE_COLS[1]);
 
 
 /** Stable per-cell hash. Ground tiles and scatter props pick variants from it. */
@@ -403,70 +385,52 @@ export function bushVariant(col: number, row: number): number {
 }
 
 const BASE_TREES: readonly Cell[] = [
-  { col: 30, row: 12 }, { col: 50, row: 12 }, { col: 24, row: 16 }, { col: 56, row: 18 },
-  { col: 22, row: 24 }, { col: 54, row: 26 }, { col: 28, row: 30 }, { col: 48, row: 28 },
-  { col: 34, row: 11 }, { col: 46, row: 15 },
+  { col: 24, row: 16 }, { col: 40, row: 16 }, { col: 20, row: 22 }, { col: 44, row: 22 },
+  { col: 22, row: 36 }, { col: 42, row: 38 }, { col: 26, row: 42 }, { col: 38, row: 20 },
 ].filter((cell) => terrainAt(cell.col, cell.row) === 'grass');
 
 const ROCKS: readonly Cell[] = [
-  { col: 26, row: 11 }, { col: 52, row: 14 }, { col: 20, row: 28 }, { col: 54, row: 30 },
-  { col: 32, row: 31 }, { col: 46, row: 32 },
+  { col: 26, row: 18 }, { col: 42, row: 20 }, { col: 14, row: 36 }, { col: 44, row: 40 },
 ].filter((cell) => terrainAt(cell.col, cell.row) === 'grass');
 
 /** Placements that are laid out by hand; scatter props must keep clear of their cells. */
 const FIXED: readonly PropPlacement[] = [
-  { kind: 'meetingTable', col: 24, row: 18 },
+  { kind: 'meetingTable', col: 22, row: 30 },
   { kind: 'campfire', col: CAMPFIRE_CELL.col, row: CAMPFIRE_CELL.row },
-  { kind: 'stumpAxe', col: 26, row: 14 },
-  { kind: 'woodpile', col: 28, row: 15 },
-  { kind: 'gardenBed', col: 20, row: 22 },
-  { kind: 'gardenBed', col: 24, row: 22 },
-  { kind: 'gardenBed', col: 20, row: 26 },
-  { kind: 'gardenBed', col: 24, row: 26 },
-  { kind: 'greenhouse', col: 15, row: 28 },
-  { kind: 'doghouse', col: 22, row: 16 },
-  { kind: 'laundry', col: 33, row: 17 },
-  { kind: 'hay', col: 24, row: 17 },
-  { kind: 'crate', col: 36, row: 18 },
-  { kind: 'cherry', col: 48, row: 16 },
-  { kind: 'cherry', col: 16, row: 18 },
-  { kind: 'banana', col: 14, row: 30 },
-  { kind: 'banana', col: 58, row: 22 },
-  { kind: 'fruitTree', col: 46, row: 26 },
-  { kind: 'fruitTree', col: 48, row: 24 },
-  { kind: 'fruitTree', col: 18, row: 12 },
-  { kind: 'fruitTree', col: 20, row: 14 },
-  { kind: 'cherry', col: 50, row: 18 },
-  { kind: 'cherry', col: 52, row: 20 },
-  { kind: 'gatehouse', col: 38, row: GATE_ROW - 3 },
-  { kind: 'mailbox', col: 42, row: LODGE.bottom },
-  { kind: 'waterfall', col: 36, row: 16 },
-  { kind: 'lily', col: 34, row: 12 },
-  { kind: 'lily', col: 38, row: 13 },
-  { kind: 'lily', col: 43, row: 12 },
-  { kind: 'lily', col: 47, row: 12 },
-  { kind: 'lily', col: 41, row: 11 },
-  { kind: 'canoe', col: 32, row: GATE_ROW + 1 },
-  { kind: 'pier', col: 48, row: GATE_ROW + 1 },
-  { kind: 'sandcastle', col: 33, row: 35 },
-  { kind: 'fence', col: 16, row: 20 },
-  { kind: 'fence', col: 18, row: 20 },
-  { kind: 'fence', col: 20, row: 20 },
-  { kind: 'fence', col: 22, row: 20 },
-  { kind: 'fence', col: 24, row: 20 },
-  { kind: 'fence', col: 26, row: 20 },
-  { kind: 'fence', col: 16, row: 30 },
-  { kind: 'fence', col: 20, row: 30 },
-  { kind: 'fence', col: 24, row: 30 },
-  { kind: 'fence', col: 34, row: 16 },
-  { kind: 'fence', col: 36, row: 16 },
-  { kind: 'fence', col: 42, row: 16 },
-  { kind: 'fence', col: 44, row: 16 },
-  { kind: 'fence', col: 34, row: 23 },
-  { kind: 'fence', col: 36, row: 23 },
-  { kind: 'fence', col: 44, row: 23 },
-  { kind: 'gateLeft', col: 38, row: GATE_ROW },
-  { kind: 'gateRight', col: 41, row: GATE_ROW },
+  { kind: 'stumpAxe', col: 14, row: 23 },
+  { kind: 'woodpile', col: 18, row: 23 },
+  { kind: 'gardenBed', col: 14, row: 34 },
+  { kind: 'gardenBed', col: 18, row: 34 },
+  { kind: 'gardenBed', col: 14, row: 38 },
+  { kind: 'gardenBed', col: 18, row: 38 },
+  { kind: 'greenhouse', col: 10, row: 36 },
+  { kind: 'doghouse', col: 20, row: 28 },
+  { kind: 'laundry', col: 26, row: 30 },
+  { kind: 'hay', col: 12, row: 26 },
+  { kind: 'crate', col: 28, row: 30 },
+  { kind: 'cherry', col: 40, row: 26 },
+  { kind: 'cherry', col: 12, row: 30 },
+  { kind: 'banana', col: 12, row: 42 },
+  { kind: 'banana', col: 46, row: 34 },
+  { kind: 'fruitTree', col: 42, row: 36 },
+  { kind: 'fruitTree', col: 44, row: 32 },
+  { kind: 'cherry', col: 48, row: 30 },
+  { kind: 'gatehouse', col: 30, row: GATE_ROW - 3 },
+  { kind: 'mailbox', col: 34, row: LODGE.bottom },
+  { kind: 'waterfall', col: 30, row: 20 },
+  { kind: 'fishman', col: 48, row: 46 },
+  { kind: 'lily', col: 3, row: 30 },
+  { kind: 'lily', col: 60, row: 24 },
+  { kind: 'lily', col: 8, row: 58 },
+  { kind: 'canoe', col: 24, row: GATE_ROW + 1 },
+  { kind: 'pier', col: 50, row: 50 },
+  { kind: 'sandcastle', col: 36, row: Math.max(0, southEdge(36) - 1) },
+  { kind: 'fence', col: 12, row: 32 },
+  { kind: 'fence', col: 14, row: 32 },
+  { kind: 'fence', col: 12, row: 40 },
+  { kind: 'fence', col: 22, row: 32 },
+  { kind: 'gateLeft', col: 30, row: GATE_ROW },
+  { kind: 'gateRight', col: 33, row: GATE_ROW },
   ...ROCKS.map((cell) => ({ kind: 'rock' as const, ...cell })),
   ...ISLETS.map((cell) => ({ kind: 'rock' as const, col: cell.col, row: cell.row + 1 })),
 ];
@@ -485,13 +449,13 @@ const FIXED_CLEARANCE: ReadonlySet<string> = (() => {
 
 /** Leisure standing cells (see landmarks.ts). Scatter keeps off them. */
 const LEISURE_CELLS: readonly Cell[] = [
-  { col: 26, row: 15 }, { col: 28, row: 16 },
-  { col: 23, row: 24 }, { col: 23, row: 25 }, { col: 23, row: 28 },
+  { col: 14, row: 24 }, { col: 18, row: 24 },
+  { col: 17, row: 35 }, { col: 17, row: 36 }, { col: 17, row: 39 },
 ];
 
-/** Arrival line: the south path, cols 37–43, from the house down to the gate. */
+/** Arrival line: the south path, from the house down to the gate. */
 function inGateCorridor(col: number, rowIndex: number): boolean {
-  return col >= 37 && col <= 43 && rowIndex >= LODGE.bottom && rowIndex <= GATE_ROW;
+  return col >= 30 && col <= 34 && rowIndex >= LODGE.bottom && rowIndex <= GATE_ROW;
 }
 
 function scatterOk(col: number, rowIndex: number): boolean {
@@ -541,8 +505,8 @@ function rimTrees(existing: readonly Cell[]): Cell[] {
 
 function tryTree(cell: Cell, all: Cell[], out: Cell[]): void {
   if (all.length >= TREE_TARGET) return;
-  if (cell.row > ISLAND.cy + 8 && Math.abs(cell.col - 40) < 8) return;
-  if (cell.col >= 26 && cell.col <= 34 && cell.row >= 11 && cell.row <= 16) return;
+  if (cell.row > ISLAND.cy + 10 && Math.abs(cell.col - ISLAND.cx) < 8) return;
+  if (cell.col >= 14 && cell.col <= 20 && cell.row >= 22 && cell.row <= 26) return;
   if (terrainAt(cell.col, cell.row) !== 'grass' || !scatterOk(cell.col, cell.row) || !treeRoom(cell)) return;
   if (pathDistance(cell.col, cell.row) <= 2.2) return;
   if (all.some((t) => chebyshev(t, cell) < 3)) return;
@@ -552,7 +516,7 @@ function tryTree(cell: Cell, all: Cell[], out: Cell[]): void {
 
 export const TREES: readonly Cell[] = [...BASE_TREES, ...rimTrees(BASE_TREES)];
 
-const GARDEN = { left: 18, right: 28, top: 20, bottom: 30 } as const;
+const GARDEN = { left: 12, right: 24, top: 32, bottom: 42 } as const;
 
 function inGarden(col: number, rowIndex: number): boolean {
   return col >= GARDEN.left && col <= GARDEN.right && rowIndex >= GARDEN.top && rowIndex <= GARDEN.bottom;
@@ -573,7 +537,7 @@ function bushes(): Cell[] {
     for (let c = 0; c < COLS && rim.length < RIM_BUSHES; c += 1) {
       if (terrainAt(c, r) !== 'grass' || !touchesWater(c, r) || !scatterOk(c, r)) continue;
       if (TREES.some((t) => chebyshev(t, { col: c, row: r }) <= 1)) continue;
-      if (r > ISLAND.cy + 8 && Math.abs(c - 40) < 8) continue;
+      if (r > ISLAND.cy + 10 && Math.abs(c - ISLAND.cx) < 8) continue;
       if (pathDistance(c, r) <= 2.2) continue;
       if (rim.some((b) => chebyshev(b, { col: c, row: r }) < 2)) continue;
       rim.push({ col: c, row: r });
@@ -621,11 +585,11 @@ export const BUSHES: readonly Cell[] = bushes();
  * Each cell is checked against the path half-width when the layout is built.
  */
 const LANTERNS: readonly Cell[] = [
-  { col: 36, row: 28 },
-  { col: 44, row: 28 },
-  { col: 36, row: 33 },
-  { col: 44, row: 32 },
-  { col: 30, row: 18 },
+  { col: 29, row: 40 },
+  { col: 35, row: 40 },
+  { col: 29, row: 46 },
+  { col: 35, row: 46 },
+  { col: 28, row: 34 },
 ].filter((c) => terrainAt(c.col, c.row) === 'grass' && pathDistance(c.col, c.row) > 1.5 && !BUSHES.some((b) => b.col === c.col && b.row === c.row));
 
 const SHORE_ROCK_CAP = 22;
@@ -635,7 +599,7 @@ function shoreRocks(): Cell[] {
   for (let r = 0; r < ROWS && out.length < SHORE_ROCK_CAP; r += 1) {
     for (let c = 0; c < COLS && out.length < SHORE_ROCK_CAP; c += 1) {
       if (terrainAt(c, r) !== 'grass' || !touchesWater(c, r)) continue;
-      if (c >= 37 && c <= 40) continue;
+      if (c >= GATE_COLS[0] && c <= GATE_COLS[1]) continue;
       if (cellHash(c, r) % 3 !== 0) continue;
       if (TREES.some((t) => t.col === c && t.row === r)) continue;
       if (BUSHES.some((b) => b.col === c && b.row === r)) continue;

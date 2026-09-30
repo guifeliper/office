@@ -24,7 +24,7 @@ import {
 } from './world-layout';
 
 /**
- * Named spots on two grids of 16 px cells: the 80×45 yard (`world-layout.ts`) and the
+ * Named spots on two grids of 16 px cells: the 64×64 yard (`world-layout.ts`) and the
  * 24×18 cabin (`cabin-layout.ts`). Every waypoint carries its zone. Routes inside a zone
  * come from A*; a route across zones walks to this side's door and resumes at the other.
  */
@@ -69,7 +69,7 @@ function at(cell: Cell, facing: Facing, zone: Zone = 'yard'): Waypoint {
 export const SOUTH_GATE: Waypoint = at({ col: GATE_COLS[1], row: GATE_ROW }, 'north');
 
 /** Between the gatehouse pillars, a few cells north of the south gate. */
-export const GATEHOUSE: Waypoint = at({ col: 40, row: GATE_ROW - 3 }, 'north');
+export const GATEHOUSE: Waypoint = at({ col: GATE_COLS[1], row: GATE_ROW - 3 }, 'north');
 
 /** Door gap in the yard lodge's front wall. The yard end of the portal. */
 export const LODGE_DOOR: Waypoint = at({ col: LODGE.doorCols[0], row: LODGE.bottom }, 'north');

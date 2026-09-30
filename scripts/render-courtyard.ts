@@ -62,6 +62,7 @@ const FILES: Record<PropKind, { base: string; foreground?: string }> = {
   pier: { base: 'pier.png' },
   sandcastle: { base: 'sandcastle.png' },
   waterfall: { base: 'waterfall.png' },
+  fishman: { base: 'fishman.png' },
 };
 
 const width = COLS * TILE;
@@ -128,6 +129,6 @@ fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(path.join(OUT, 'island-rounds'), { recursive: true });
 writePng(path.join(OUT, 'courtyard-1x.png'), scene);
 writePng(path.join(OUT, 'island-hub-1x.png'), scene);
-writePng(path.join(OUT, 'island-rounds/r14-1x.png'), scene);
-writePng(path.join(OUT, 'courtyard-2x.png'), scaleImage(crop(scene, 16 * TILE, 0, 48 * TILE, 40 * TILE), 2));
+writePng(path.join(OUT, 'island-rounds/r16-1x.png'), scene);
+writePng(path.join(OUT, 'courtyard-2x.png'), scaleImage(crop(scene, 8 * TILE, 8 * TILE, 32 * TILE, 32 * TILE), 2));
 console.warn('wrote', OUT);
