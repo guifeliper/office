@@ -56,6 +56,8 @@ export interface PresenceSnapshot {
   leisure: LeisureKind | null;
   /** False for reduced motion, walking, or stale. */
   leisureMotion: boolean;
+  /** Ms since the last work_observed. Null when the clock was never set. Departure stays at 15 minutes. */
+  quietMs: number | null;
 }
 
 interface Agent {
@@ -83,6 +85,8 @@ interface Agent {
   lastObservedAt: number | null;
   /** True while one of this consultant's collaborators is active. */
   departBlocked: boolean;
+  /** Cell the renderer errand is walking to. Empty when the body is not on an errand. */
+  aimKey: string;
 }
 
 /**
@@ -94,6 +98,12 @@ export class PresenceDirector {
   private readonly agents = new Map<string, Agent>();
   /** Ids that walked out the gate and stay gone until work_observed brings them back. */
   private readonly away = new Set<string>();
+  /** Renderer errand goals. Ignored unless the body is idle at leisure. */
+  private aims: ReadonlyMap<string, Waypoint> = new Map();
+
+  setAims(goals: ReadonlyMap<string, Waypoint>): void {
+    this.aims = goals;
+  }
 
   sync(consultants: readonly PresenceConsultant[], now = 0): void {
     const live = new Set(consultants.map((c) => c.id));
@@ -169,6 +179,7 @@ export class PresenceDirector {
       } else if (agent.mode === 'depart' && agent.departBlocked && agent.desired === 'leisure') {
         returnToLeisure(agent);
       }
+      followAim(agent, reducedMotion ? undefined : this.aims.get(agent.id), reducedMotion);
       agent.moving = false;
       if (reducedMotion) {
         if (agent.mode === 'toLeisure' && agent.path.length === 0) {
@@ -272,6 +283,7 @@ export class PresenceDirector {
         mode: agent.mode,
         leisure: agent.mode === 'leisure' && !agent.moving ? agent.leisureKind : null,
         leisureMotion: agent.mode === 'leisure' && !agent.moving && !reducedMotion,
+        quietMs: agent.lastObservedAt === null ? null : Math.max(0, now - agent.lastObservedAt),
       });
     }
 
@@ -350,6 +362,35 @@ function seatMode(mode: PresenceMode): 'arrive' | 'work' | 'toLeisure' | 'leisur
   return mode;
 }
 
+function atPoint(agent: Agent, goal: { x: number; y: number; zone: Zone }): boolean {
+  return agent.zone === goal.zone && Math.hypot(agent.x - goal.x, agent.y - goal.y) < 12;
+}
+
+/**
+ * Walk an idle body toward a renderer errand. Reduced motion drops the path and holds still.
+ * Work, stale, and departure keep the path presence already chose.
+ */
+function followAim(agent: Agent, goal: Waypoint | undefined, reducedMotion: boolean): void {
+  const eligible = agent.mode === 'leisure' && agent.desired === 'leisure' && !reducedMotion;
+  if (!goal || !eligible) {
+    if (agent.aimKey && agent.mode === 'leisure' && agent.desired === 'leisure') agent.path = [];
+    agent.aimKey = '';
+    return;
+  }
+  const key = `${goal.zone}:${Math.round(goal.x)}:${Math.round(goal.y)}:${goal.facing}`;
+  if (agent.aimKey === key) {
+    if (agent.path.length === 0 && atPoint(agent, goal)) agent.facing = goal.facing;
+    return;
+  }
+  agent.aimKey = key;
+  if (atPoint(agent, goal)) {
+    agent.path = [];
+    agent.facing = goal.facing;
+    return;
+  }
+  agent.path = routeTo(agent, goal);
+}
+
 function atGate(agent: Agent): boolean {
   return agent.zone === SOUTH_GATE.zone
     && Math.hypot(agent.x - SOUTH_GATE.x, agent.y - SOUTH_GATE.y) < 12;
@@ -397,6 +438,7 @@ function spawn(
     desired,
     lastObservedAt: clock.lastObservedAt,
     departBlocked: clock.departBlocked,
+    aimKey: '',
   };
 
   if (queue) {

@@ -215,6 +215,15 @@ export function cabinSpriteAnchor(p: CabinPlacement): { x: number; y: number; z:
   return { x: base.x, y, z: base.y };
 }
 
+/** Feet anchor on the armchair seat, centered on its two-cell span. */
+export function armchairSeat(): { x: number; y: number } {
+  const chair = CABIN_PROPS.find((prop) => prop.kind === 'armchair');
+  const col = chair?.col ?? 19;
+  const row = chair?.row ?? 16;
+  const span = CABIN_PROP_SPECS.armchair.span;
+  return { x: (col + span / 2) * TILE, y: (row + 1) * TILE - SEAT_DROP };
+}
+
 /** Flame cycle over the fireplace opening: the pack flame cell sits 27 px into the hearth cell. */
 export function flameAnchor(fireplace: CabinPlacement): { x: number; y: number; z: number } {
   const { x, y, z } = cabinSpriteAnchor(fireplace);

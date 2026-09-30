@@ -46,6 +46,27 @@ function segmentBlocked(from: FlightPoint, to: FlightPoint, blocked: (x: number,
   return false;
 }
 
+/**
+ * A point farther from the chaser. The flight itself is left alone.
+ * If every step is blocked, the butterfly stays where it is.
+ */
+export function butterflyAway(
+  at: FlightPoint,
+  from: FlightPoint,
+  blocked: (x: number, y: number) => boolean,
+): FlightPoint {
+  const dx = at.x - from.x;
+  const dy = at.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const dist = 48;
+  const options = [
+    { x: at.x + (dx / len) * dist, y: at.y + (dy / len) * dist },
+    { x: at.x + (-dy / len) * dist, y: at.y + (dx / len) * dist },
+    { x: at.x + (dy / len) * dist, y: at.y + (-dx / len) * dist },
+  ];
+  return options.find((point) => !blocked(point.x, point.y)) ?? { x: at.x, y: at.y };
+}
+
 /** Wing frame and position. Reduced motion holds the first perch and the closed wings. */
 export function butterflyPose(
   flight: ButterflyFlight,
