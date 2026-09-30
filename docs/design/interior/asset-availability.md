@@ -248,7 +248,9 @@ Para ocioso dentro da sala o pack oferece: sentar (a mesa), dormir (a cama), e o
 
 `Character/Character/PNG/22. Flute/` mede 576×32. 576 / 32 = 18 frames. 18 não divide por 4, então a tira não é sul / norte / leste / oeste. São três grupos de 6 frames; a quarta face não está na pasta. Oeste não é espelhado. Os olhos dessa pasta são só `Green.png` — `resolveLayer` cobriria a cor, mas o recorte das faces é o motivo de não entrar no cast.
 
-Dormir (`19. Sleep`) também não tem quatro faces (192×32, 6 frames) e não tem pasta `Clothers`. A tira entra linear: pele, cabelo e olhos verdes. O cochilo usa os frames 2 e 3 (deitado de lado). Os frames 4 e 5 são o outro lado do mesmo pose; não são espelho nosso.
+Dormir (`19. Sleep`) também não tem quatro faces (192×32, 6 frames) e não tem pasta `Clothers`. Os frames são só cabeça e mãos: foram desenhados para ficar sob o cobertor de uma cama. A cabana não tem cama, então o cochilo é a pose sentada virada para o sul na poltrona, com o balão "=_=" de `UI/speech bubble, emojis, reaction.png` (célula 32,128).
+
+Carregar (`13.*`) também não traz o objeto na mão. A tora carregada é o tronco solto de `Objects/Tree/TREE TRUNKS copiar.png`. A pilha do pátio é a pilha de três troncos da mesma folha. `Objects/Props/wood.png` é um tronco boiando na água e não entra no chão.
 
 ## O que continua custom
 

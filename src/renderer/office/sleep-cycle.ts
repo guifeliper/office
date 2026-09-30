@@ -1,8 +1,7 @@
 /**
  * Dozing in the cabin armchair, renderer memory only.
- * Folder 19 is 192×32: six frames, not four facings.
- * Frames 0–1 are the small upper pose. Frames 4–5 mirror 2–3.
- * The doze loops the side-lying pair, frames 2 and 3. Nothing is mirrored.
+ * Folder 19 Sleep is only head and hands, drawn to lie under a bed blanket, and the cabin has no bed.
+ * The doze is the pack sit-south pose on the armchair with the "=_=" speech bubble over the head.
  */
 
 export type SleepPhase = 'go' | 'doze';
@@ -14,8 +13,8 @@ export interface SleepState {
 
 /** Quiet time before a doze. Still inside the 15-minute departure. */
 export const SLEEP_AFTER_MS = 8 * 60_000;
-export const SLEEP_STEP_MS = 700;
-const SLEEP_STILL = 2;
+/** The bubble rises one pixel and settles, like a slow breath. */
+export const SLEEP_STEP_MS = 900;
 
 export function initialSleep(): SleepState {
   return { phase: 'go', phaseMs: 0 };
@@ -32,8 +31,9 @@ export function stepSleep(state: SleepState, deltaMs: number, arrived: boolean, 
   return { phase: 'doze', phaseMs };
 }
 
+/** Frame is the bubble lift, 0 or 1. Reduced motion holds 0. */
 export function sleepPose(state: SleepState, play: boolean): { action: 'sleep'; frame: number; whileMoving: boolean } | null {
   if (state.phase !== 'doze') return null;
-  const frame = play ? SLEEP_STILL + (Math.floor(state.phaseMs / SLEEP_STEP_MS) % 2) : SLEEP_STILL;
+  const frame = play ? Math.floor(state.phaseMs / SLEEP_STEP_MS) % 2 : 0;
   return { action: 'sleep', frame, whileMoving: false };
 }

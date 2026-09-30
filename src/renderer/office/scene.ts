@@ -9,6 +9,8 @@ import {
   CAMPFIRE_FRAME_URL,
   BUTTERFLY_FRAME_URL,
   CROP_STAGE_URL,
+  CARRIED_LOG_URL,
+  DOZE_BUBBLE_URL,
   LILY_FRAME_URL,
   REED_FRAME_URL,
   CANOPY_VARIANTS,
@@ -35,7 +37,7 @@ import {
   flameAnchor,
   type CabinPropKind,
 } from './cabin-layout';
-import { ConsultantSprite } from './consultant-view';
+import { ConsultantSprite, type ErrandItems } from './consultant-view';
 import { COLLABORATOR_SCALE, type OfficeViewModel } from './projection';
 import { WORLD } from './landmarks';
 import { PresenceDirector, type PresenceSnapshot } from './presence';
@@ -89,6 +91,7 @@ export class OfficeScene {
   private lilyFrames: Texture[] = [];
   private reedFrames: Texture[] = [];
   private cropFrames: Texture[] = [];
+  private errandItems: ErrandItems | null = null;
   private readonly cropSprites = new Map<string, Sprite>();
   private readonly beds = new Map<string, GardenState>();
   private readonly fishing = new Map<string, FishState>();
@@ -136,13 +139,16 @@ export class OfficeScene {
 
     try {
       Assets.setPreferences({ preferWorkers: false, preferCreateImageBitmap: false });
-      const [propTextures, canopies, bushes] = await Promise.all([
+      const [propTextures, canopies, bushes, log, doze] = await Promise.all([
         loadProps(),
         Promise.all(CANOPY_VARIANTS.map((url) => loadNearest(url))),
         Promise.all(BUSH_VARIANTS.map((url) => loadNearest(url))),
+        loadNearest(CARRIED_LOG_URL),
+        loadNearest(DOZE_BUBBLE_URL),
         this.dolls.load(),
         this.buildCabin(),
       ]);
+      this.errandItems = { log, doze };
       this.dollsReady = true;
       if (this.destroyed) return;
       const props = createPropSprites(PROPS, propTextures, { canopies, bushes });
@@ -416,13 +422,13 @@ export class OfficeScene {
       if (this.consultants.has(model.id)) continue;
       const sheets = this.dolls.sheetsFor(model.conversationId);
       if (!sheets) continue;
-      this.consultants.set(model.id, new ConsultantSprite(sheets, model));
+      this.consultants.set(model.id, new ConsultantSprite(sheets, model, 1, this.errandItems));
     }
     for (const model of this.view.collaborators) {
       if (this.collaborators.has(model.id)) continue;
       const sheets = this.dolls.sheetsFor(model.appearanceId);
       if (!sheets) continue;
-      this.collaborators.set(model.id, new ConsultantSprite(sheets, model, COLLABORATOR_SCALE));
+      this.collaborators.set(model.id, new ConsultantSprite(sheets, model, COLLABORATOR_SCALE, this.errandItems));
     }
 
     this.applySnapshots(this.presence.step(0, this.reducedMotion, Date.now()), 0);

@@ -9,7 +9,9 @@ import { STATIONS, pickOne, stationKey, stationWaypoint } from '../../src/render
 import { WOOD_CHOP_MS, WOOD_DROP_MS, WOOD_LIFT_MS, WOOD_REST_MS, initialWood, stepWood, woodPose, woodTravels } from '../../src/renderer/office/wood-cycle';
 import { PET_MS, PET_REST_MS, initialPet, petPose, stepPet } from '../../src/renderer/office/pet-cycle';
 import { BUG_PERIOD_MS, BUG_SWING_MS, bugPose, chaseDue, initialBug, stepBug } from '../../src/renderer/office/bug-cycle';
-import { SLEEP_AFTER_MS, maySleep, sleepPose, stepSleep } from '../../src/renderer/office/sleep-cycle';
+import { SLEEP_AFTER_MS, SLEEP_STEP_MS, maySleep, sleepPose, stepSleep } from '../../src/renderer/office/sleep-cycle';
+import { heldItem } from '../../src/renderer/office/consultant-view';
+import { Texture } from 'pixi.js';
 
 function snap(partial: Pick<PresenceSnapshot, 'id'> & Partial<PresenceSnapshot>): PresenceSnapshot {
   return {
@@ -49,11 +51,35 @@ describe('character action strips', () => {
     expect(CAST_FRAMES.carryPick).toBe(512 / 32 / 4);
     expect(CAST_FRAMES.net).toBe(768 / 32 / 4);
     expect(CAST_FRAMES.pet).toBe(384 / 32 / 4);
-    expect(CAST_FRAMES.sleep).toBe(192 / 32);
     // Folder 22 is 576×32. 18 frames do not split into four facings, so there is no flute row.
     expect(576 / 32).toBe(18);
     expect(18 % 4).not.toBe(0);
     expect(Object.keys(CAST_ROW)).not.toContain('flute');
+    // Folder 19 is head and hands for a bed blanket; the doze sits in the armchair instead.
+    expect(Object.keys(CAST_ROW)).not.toContain('sleep');
+  });
+});
+
+describe('held items', () => {
+  const log = Texture.WHITE;
+  const doze = Texture.EMPTY;
+  const items = { log, doze };
+
+  it('keeps the log overhead while hauling and from the standing pick-up frames', () => {
+    expect(heldItem({ action: 'carryWalk', frame: 0, whileMoving: true }, items)?.texture).toBe(log);
+    expect(heldItem({ action: 'carryPick', frame: 0, whileMoving: false }, items)).toBeNull();
+    expect(heldItem({ action: 'carryPick', frame: 1, whileMoving: false }, items)).toBeNull();
+    const up = heldItem({ action: 'carryPick', frame: 3, whileMoving: false }, items);
+    expect(up?.texture).toBe(log);
+    expect(up!.y).toBeLessThan(-12);
+    expect(heldItem({ action: 'axe', frame: 0, whileMoving: false }, items)).toBeNull();
+  });
+
+  it('shows the doze bubble, lifting one pixel on the second frame', () => {
+    const rest = heldItem({ action: 'sleep', frame: 0, whileMoving: false }, items)!;
+    const lift = heldItem({ action: 'sleep', frame: 1, whileMoving: false }, items)!;
+    expect(rest.texture).toBe(doze);
+    expect(lift.y).toBe(rest.y - 1);
   });
 });
 
@@ -160,21 +186,21 @@ describe('insect cycle', () => {
 });
 
 describe('sleep cycle', () => {
-  it('dozes on the side-lying frames only after a long idle, and before departure', () => {
+  it('dozes in the armchair only after a long idle, and before departure', () => {
     expect(maySleep(null, ABSENCE_MS)).toBe(false);
     expect(maySleep(SLEEP_AFTER_MS - 1, ABSENCE_MS)).toBe(false);
     expect(maySleep(SLEEP_AFTER_MS, ABSENCE_MS)).toBe(true);
     expect(maySleep(ABSENCE_MS, ABSENCE_MS)).toBe(false);
     let state = stepSleep({ phase: 'go', phaseMs: 0 }, 30, true, false);
     expect(state.phase).toBe('doze');
-    expect(sleepPose(state, false)?.frame).toBe(2);
-    state = stepSleep(state, 700, true, false);
-    expect(sleepPose(state, true)?.frame).toBe(3);
+    expect(sleepPose(state, true)?.frame).toBe(0);
+    state = stepSleep(state, SLEEP_STEP_MS, true, false);
+    expect(sleepPose(state, true)?.frame).toBe(1);
   });
 
-  it('holds the lying frame when motion is reduced', () => {
+  it('holds the bubble still when motion is reduced', () => {
     expect(stepSleep({ phase: 'doze', phaseMs: 900 }, 5_000, true, true)).toEqual({ phase: 'doze', phaseMs: 0 });
-    expect(sleepPose({ phase: 'doze', phaseMs: 0 }, false)?.frame).toBe(2);
+    expect(sleepPose({ phase: 'doze', phaseMs: SLEEP_STEP_MS }, false)?.frame).toBe(0);
   });
 });
 

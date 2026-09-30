@@ -89,3 +89,7 @@ export const BUTTERFLY_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`butterfly-${i}.
 export const LILY_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`lily-${i}.png`));
 export const REED_FRAME_URL = [0, 1, 2, 3].map((i) => yard(`reed-${i}.png`));
 export const CROP_STAGE_URL = [0, 1, 2, 3].map((i) => yard(`crop-${i}.png`));
+
+/** Carrying rows ship no item; the loose log from TREE TRUNKS rides over the hands. */
+export const CARRIED_LOG_URL = yard('carried-log.png');
+export const DOZE_BUBBLE_URL = cabin('doze-bubble.png');

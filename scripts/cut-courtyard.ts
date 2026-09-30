@@ -177,7 +177,10 @@ for (let i = 0; i < 6; i += 1) write(`bonfire-${i}`, crop(fire, i * 16, 0, 16, 3
 
 const pine = sheet('Objects/Tree/Common/No Shadow/Pine Tree.png');
 write('stump', crop(pine, 203, 37, 10, 10), true);
-write('woodpile', crop(sheet('Objects/Props/wood.png'), 32, 1, 16, 14), true);
+// Props/wood.png is a log floating in water. TREE TRUNKS is the dry log pile and loose log.
+const trunks = sheet('Objects/Tree/TREE TRUNKS copiar.png');
+write('woodpile', crop(trunks, 64, 16, 32, 16), true);
+write('carried-log', crop(trunks, 64, 0, 32, 16), true);
 
 const soil = tile(sheet('Tileset/Tilled Soil and wet soil.png'), 9, 1);
 const bed = createImage(32, 32);

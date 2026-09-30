@@ -125,6 +125,10 @@ write(CABIN, 'bookshelf', crop(others, 0, 40, 32, 40));
 const cat = sheet('Animals/Pets/Cats/1/Ginger.png', 128, 416);
 write(CABIN, 'cat', crop(cat, 0, 9 * 32, 32, 32));
 
+// Speech bubbles start at row 7 of the 16 px grid. Column 2 of the second bubble row is the "=_=" face.
+const emoji = sheet('UI/speech bubble, emojis, reaction.png', 144, 336);
+write(CABIN, 'doze-bubble', crop(emoji, 32, 128, 16, 16));
+
 const door = sheet('Objects/Exterior/Houses/Door, windows, and chimney/Double doors.png', 128, 64);
 write(CABIN, 'door', crop(door, 32, 0, 32, 32));
 
@@ -133,7 +137,8 @@ write(CABIN, 'door', crop(door, 32, 0, 32, 32));
  * Rows: idle, walk, sit, axe, hoe, watering, the fishing cycle
  * (cast 15, wait 4, bite 8, reel 4, catch 4 frames per facing),
  * then carrying idle 4, carrying walk 6, pick-up 4, bug net 6, petting 3.
- * Sleep is the last row: 6 frames, not four facings (see asset-availability).
+ * Carrying rows ship no item; the log is a separate yard crop drawn over the hands.
+ * Folder 19 Sleep is only head and hands, drawn to sit under a bed blanket, so it is not a row.
  * Folder 22 Flute is 576×32 (18 frames). 18 is not divisible by 4, so it has no
  * south/north/east/west set. The fourth facing is absent and is not mirrored.
  * The strip is as wide as the cast, 1920.
@@ -156,8 +161,6 @@ const ACTIONS = [
   { dir: '13.3 Carrying - Pick Up', w: 512 },
   { dir: '4. Pickaxe, Hoe and Catching insects', w: 768, weapon: 'Weapons/Bug net.png' },
   { dir: '20. Petting', w: 384 },
-  // No farm-clothes folder. Skin, hair, and green eyes (resolveLayer) only.
-  { dir: '19. Sleep', w: 192, bare: true },
 ] as const;
 
 const HAIRS = ['Josh', 'Lyria', 'Standard', 'Fawn', 'Sebastian', 'Iridessa', 'Silvermist'] as const;
@@ -182,7 +185,7 @@ for (let i = 0; i < LOOK_COUNT; i += 1) {
     const layers = [
       `Skins/${look.skin}.png`,
       `Eyes/${look.eyes}.png`,
-      ...('bare' in action ? [] : [`Clothers/Farm/${look.cloth}.png`]),
+      `Clothers/Farm/${look.cloth}.png`,
       `Hair's/${look.hair}/${look.hairColor}.png`,
       ...('weapon' in action ? [action.weapon] : []),
     ];

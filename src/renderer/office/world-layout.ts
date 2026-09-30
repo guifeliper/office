@@ -83,7 +83,8 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   meetingTable: { span: 3, blocks: [...row(3), ...row(3, -1)], foreground: 'none' },
   campfire: { span: 1, blocks: row(1), foreground: 'none' },
   stumpAxe: { span: 1, blocks: row(1), foreground: 'none' },
-  woodpile: { span: 1, blocks: row(1), foreground: 'none' },
+  /** Three-log pile from TREE TRUNKS, 26 px wide. */
+  woodpile: { span: 2, blocks: row(2), foreground: 'none' },
   /** Two by two tilled tiles, so the four beds stay separate plots. */
   gardenBed: { span: 2, blocks: [...row(2), ...row(2, -1)], foreground: 'none' },
   gateLeft: { span: 1, blocks: row(1), foreground: 'none' },

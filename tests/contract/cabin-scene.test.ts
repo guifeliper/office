@@ -97,7 +97,7 @@ describe('Tiny Farm sit anchor', () => {
     expect(SEAT_DROP).toBe(CAST_CELL - CAST_FEET_ROW);
   });
 
-  it('ships 16 composed looks, including carrying, the net, petting, and sleep', () => {
+  it('ships 16 composed looks, including carrying, the net, and petting', () => {
     for (let i = 0; i < LOOK_COUNT; i += 1) {
       const img = readPng(path.join(ART, `cast/look-${String(i).padStart(2, '0')}.png`));
       const rows = Math.max(...Object.values(CAST_ROW)) + 1;

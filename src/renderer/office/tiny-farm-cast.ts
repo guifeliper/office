@@ -20,27 +20,24 @@ export const LOOK_URLS: readonly string[] = Array.from({ length: LOOK_COUNT }, (
 export type CastAction =
   | 'idle' | 'walk' | 'sit' | 'axe' | 'hoe' | 'water'
   | 'fishCast' | 'fishWait' | 'fishBite' | 'fishReel' | 'fishCatch'
-  | 'carryIdle' | 'carryWalk' | 'carryPick' | 'net' | 'pet' | 'sleep';
+  | 'carryIdle' | 'carryWalk' | 'carryPick' | 'net' | 'pet';
 
 export const CAST_ROW: Record<CastAction, number> = {
   idle: 0, walk: 1, sit: 2, axe: 3, hoe: 4, water: 5,
   fishCast: 6, fishWait: 7, fishBite: 8, fishReel: 9, fishCatch: 10,
-  carryIdle: 11, carryWalk: 12, carryPick: 13, net: 14, pet: 15, sleep: 16,
+  carryIdle: 11, carryWalk: 12, carryPick: 13, net: 14, pet: 15,
 };
 export const CAST_FRAMES: Record<CastAction, number> = {
   idle: 4, walk: 6, sit: 1, axe: 6, hoe: 6, water: 8,
   fishCast: 15, fishWait: 4, fishBite: 8, fishReel: 4, fishCatch: 4,
-  carryIdle: 4, carryWalk: 6, carryPick: 4, net: 6, pet: 3, sleep: 6,
+  carryIdle: 4, carryWalk: 6, carryPick: 4, net: 6, pet: 3,
 };
 
 const FACING_ORDER: readonly Facing[] = ['south', 'north', 'east', 'west'];
 
 export function castFrameRect(action: CastAction, facing: Facing, frame: number): { x: number; y: number; w: number; h: number } {
   const count = CAST_FRAMES[action];
-  // Sleep is six frames in a line, not south/north/east/west.
-  const index = action === 'sleep'
-    ? ((frame % count) + count) % count
-    : FACING_ORDER.indexOf(facing) * count + (((frame % count) + count) % count);
+  const index = FACING_ORDER.indexOf(facing) * count + (((frame % count) + count) % count);
   return { x: index * CAST_CELL, y: CAST_ROW[action] * CAST_CELL, w: CAST_CELL, h: CAST_CELL };
 }
 
