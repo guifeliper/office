@@ -22,7 +22,7 @@ import { createGround } from './ground';
 import { createPropSprites, type PropTextures } from './prop-view';
 import { GROUND_DEPTH } from './depth';
 import { PROPS, PROP_SPECS, lodgeShellSolid, propBase, terrainAt, type PropKind } from './world-layout';
-import { butterflyFlights, butterflyPose, type ButterflyFlight } from './butterflies';
+import { butterflyFlights, butterflyPose, glideToward, type ButterflyFlight, type FlightPoint } from './butterflies';
 import { ErrandBoard } from './errand-board';
 import { claimBeds, gardenAction, initialGarden, stepGarden, type GardenState } from './garden-cycle';
 import { fishFrame, initialFish, stepFish, type FishState } from './fish-cycle';
@@ -49,6 +49,8 @@ const FLAME_MS = 150;
 /** Clear color around the world: the yard keeps its cream margin, the cabin sits in the dark. */
 const BACKDROP: Record<SceneId, number> = { yard: 0xfff8f1, cabin: 0x1c0a18 };
 const CLICK_SLOP = 4;
+/** Fastest a butterfly may be drawn moving, px/s, even when scared by a net. */
+const BUTTERFLY_GLIDE = 28;
 
 interface SceneLayer {
   world: Container;
@@ -84,6 +86,7 @@ export class OfficeScene {
   private butterflySprites: Sprite[] = [];
   private butterflyFrames: Texture[] = [];
   private flights: ButterflyFlight[] = [];
+  private butterflyDrawn: FlightPoint[] = [];
   private lilySprites: Sprite[] = [];
   private lilyBaseY: number[] = [];
   private reedSprites: Sprite[] = [];
@@ -125,8 +128,7 @@ export class OfficeScene {
     }
 
     this.host = host;
-    this.app = app;
-    host.appendChild(app.canvas);
+    this.app = app;    host.appendChild(app.canvas);
     this.waitingLabel.anchor.set(0.5);
     this.waitingLabel.eventMode = 'none';
     this.layers.yard.world.addChild(createGround());
@@ -523,7 +525,9 @@ export class OfficeScene {
   }
 
   private butterflyPoints(): { x: number; y: number }[] {
-    return this.flights.map((flight, index) => butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion));
+    return this.flights.map(
+      (flight, index) => this.butterflyDrawn[index] ?? butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion),
+    );
   }
 
   private stepFishing(deltaMs: number): void {
@@ -589,8 +593,8 @@ export class OfficeScene {
       sprite.roundPixels = true;
       sprite.eventMode = 'none';
       sprite.label = 'butterfly';
-      const start = flight.points[0]!;
-      sprite.position.set(start.x, start.y);
+      sprite.position.set(flight.home.x, flight.home.y);
+      this.butterflyDrawn.push({ ...flight.home });
       this.layers.yard.actors.addChild(sprite);
       this.butterflySprites.push(sprite);
     }
@@ -620,11 +624,14 @@ export class OfficeScene {
       const sprite = this.butterflySprites[index];
       if (!sprite) return;
       const route = butterflyPose(flight, this.ambientMs + index * 900, this.reducedMotion);
-      const fled = this.errands.butterflyAt(index);
-      const pose = fled ? { ...route, x: fled.x, y: fled.y } : route;
-      sprite.position.set(Math.round(pose.x), Math.round(pose.y));
-      sprite.zIndex = pose.y;
-      const frame = this.butterflyFrames[pose.frame];
+      const target = this.errands.butterflyAt(index) ?? route;
+      const drawn = this.reducedMotion
+        ? { x: target.x, y: target.y }
+        : glideToward(this.butterflyDrawn[index] ?? target, target, deltaMs, BUTTERFLY_GLIDE);
+      this.butterflyDrawn[index] = drawn;
+      sprite.position.set(Math.round(drawn.x), Math.round(drawn.y));
+      sprite.zIndex = drawn.y;
+      const frame = this.butterflyFrames[route.frame];
       if (frame) sprite.texture = frame;
     });
     this.lilySprites.forEach((sprite, index) => {

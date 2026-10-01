@@ -117,7 +117,8 @@ export const PROP_SPECS: Record<PropKind, PropSpec> = {
   crate: { span: 1, blocks: row(1), foreground: 'none' },
   butterfly: { span: 1, blocks: [], foreground: 'none' },
   greenhouse: { span: 4, blocks: [...row(4), ...row(4, -1)], foreground: 'none' },
-  canoe: { span: 2, blocks: [], foreground: 'none' },
+  /** Same span as the pier, so the hull sits on the middle of the dock. */
+  canoe: { span: 3, blocks: [], foreground: 'none' },
   pier: { span: 3, blocks: [], foreground: 'none' },
   sandcastle: { span: 1, blocks: row(1), foreground: 'none' },
   waterfall: { span: 4, blocks: [], foreground: 'none' },

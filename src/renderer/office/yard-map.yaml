@@ -12,6 +12,8 @@
 # Canteiros, lenha, toco e píer não mudaram de célula.
 # A cerca de cima começa na coluna 16 para não cruzar a estufa.
 # A fruteira do sudoeste foi para (16, 45) para não cruzar essa cerca.
+# Picnic.png é só toalha xadrez, então não há mesa de piquenique no pátio.
+# Coconut Tree.png é uma rede entre duas palmeiras, então não entra como palmeira.
 #
 # `row` de um prop: número da célula, ou um token resolvido depois da costa:
 #   gate, gate-3, gate+1   — cerca sul
@@ -99,7 +101,6 @@ props:
   - { kind: gardenBed, col: 21, row: 40 }
   - { kind: greenhouse, col: 12, row: 37 }
   - { kind: doghouse, col: 18, row: 24 }
-  - { kind: meetingTable, col: 22, row: 25 }
   - { kind: laundry, col: 25, row: 28 }
   - { kind: bench, col: 20, row: 31 }
   - { kind: stall, col: 43, row: 37 }
@@ -124,8 +125,6 @@ props:
   - { kind: fishman, col: 49, row: 44 }
   - { kind: barrel, col: 47, row: 46 }
   - { kind: barrel, col: 55, row: 45 }
-  - { kind: palm, col: 48, row: 36 }
-  - { kind: palm, col: 22, row: south-2 }
   - { kind: lily, col: 28, row: 19 }
   - { kind: lily, col: 29, row: 19 }
   - { kind: lily, col: 35, row: 19 }

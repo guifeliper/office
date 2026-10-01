@@ -171,10 +171,10 @@ describe('insect cycle', () => {
     expect(bugPose(state, true)?.action).toBe('net');
     state = stepBug(state, BUG_SWING_MS, true, false);
     expect(state.phase).toBe('flee');
-    const flight = { points: [{ x: 10, y: 10 }], pauseMs: 1, legMs: 1 };
-    const away = butterflyAway({ x: 10, y: 10 }, { x: 0, y: 10 }, () => false);
+    const at = { x: 10, y: 10 };
+    const away = butterflyAway(at, { x: 0, y: 10 }, () => false);
     expect(Math.hypot(away.x - 0, away.y - 10)).toBeGreaterThan(10);
-    expect(flight.points).toEqual([{ x: 10, y: 10 }]);
+    expect(at).toEqual({ x: 10, y: 10 });
     expect(butterflyAway({ x: 10, y: 10 }, { x: 0, y: 0 }, () => true)).toEqual({ x: 10, y: 10 });
   });
 

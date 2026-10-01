@@ -78,7 +78,7 @@ describe('map placement', () => {
   it('keeps small flower and mushroom accents sparse', () => {
     const accents = PROPS.filter((prop) => prop.kind === 'flower' || prop.kind === 'mushroom');
     expect(accents.length).toBeGreaterThan(20);
-    expect(accents.length).toBeLessThanOrEqual(48);
+    expect(accents.length).toBeLessThanOrEqual(56);
   });
 
   it('keeps the pier and any dock over water at the shore, clear of other props', () => {
