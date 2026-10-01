@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
   {
-    ignores: ['node_modules/**', 'out/**', '.vite/**', 'dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
+    ignores: ['node_modules/**', 'out/**', '.vite/**', 'dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**', '.cache/**'],
   },
   {
     files: ['**/*.{ts,tsx,mjs}'],

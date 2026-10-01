@@ -1,0 +1,38 @@
+{
+  "monitor apoiado": {
+    "value": "r1 vão 6px → r2 vão 0px (pé sobre o tampo)",
+    "pass": true
+  },
+  "1 proporção sentada": {
+    "value": "cabeça 15 linhas (y27–41, cabelo + nuca) × 14 largura; tronco 10; cabeça ≥ tronco+4: true",
+    "pass": true
+  },
+  "2 cabelo": {
+    "value": "claro 17 médio 130 escuro 41 (claro 9%), brilho na coroa 17px tocando o topo: true",
+    "pass": true
+  },
+  "4 mãos": {
+    "value": "esquerda (teclado) x14–16 y39–41 pele 9/9, fora do tronco 3px, sobre a mesa 9, punho escuro true | direita (coxa) x29–31 y50–52 pele 9/9, fora do tronco 1px, sobre a mesa 0, punho escuro true",
+    "pass": true
+  },
+  "5 dobras": {
+    "value": "dobra das costas 3×3 x20–22 y48–50: true; fitas verticais 1px 0",
+    "pass": true
+  },
+  "7 sel-out": {
+    "value": "ink no corpo sentado 0 px",
+    "pass": true
+  },
+  "8 assento": {
+    "value": "última fileira 55, fileira 56 vazia; madeira ao lado do quadril 3,3,3,3,3,3",
+    "pass": true
+  },
+  "9 leitura 1×": {
+    "value": "tela termina na linha 25, cabeça começa na 27 (folga 1); corpo sobre a tela 0px (o pé do suporte fica atrás da cabeça)",
+    "pass": true
+  },
+  "6+10 paleta": {
+    "value": "12 cores (paleta do corpo r2), alpha sujo 0, luminância cai claro→médio→escuro true",
+    "pass": true
+  }
+}

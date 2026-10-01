@@ -49,3 +49,11 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Tiny Farm raw pack and the crops cut from it. License forbids redistributing the sheets.
+Tiny Asset Pack*
+.cache/
+
+# Comparison renders paint the pack. Notes in this folder stay tracked.
+docs/design/tiny-farm/**/*.png
+docs/design/interior/cabin-*.png

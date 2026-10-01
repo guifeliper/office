@@ -1,0 +1,177 @@
+{
+  "ok": 118,
+  "total": 118,
+  "failed": [],
+  "looks": 4800,
+  "lookFailures": [],
+  "measures": [
+    {
+      "facing": "south",
+      "frame": 0,
+      "foot": 4,
+      "gap": 6,
+      "arm": 4
+    },
+    {
+      "facing": "south",
+      "frame": 1,
+      "foot": 5,
+      "gap": 2,
+      "arm": 4
+    },
+    {
+      "facing": "south",
+      "frame": 2,
+      "foot": 6,
+      "gap": 2,
+      "arm": 6
+    },
+    {
+      "facing": "south",
+      "frame": 3,
+      "foot": 4,
+      "gap": 6,
+      "arm": 4
+    },
+    {
+      "facing": "south",
+      "frame": 4,
+      "foot": 5,
+      "gap": 2,
+      "arm": 4
+    },
+    {
+      "facing": "south",
+      "frame": 5,
+      "foot": 6,
+      "gap": 2,
+      "arm": 6
+    },
+    {
+      "facing": "north",
+      "frame": 0,
+      "foot": 4,
+      "gap": 6,
+      "arm": 4
+    },
+    {
+      "facing": "north",
+      "frame": 1,
+      "foot": 5,
+      "gap": 2,
+      "arm": 4
+    },
+    {
+      "facing": "north",
+      "frame": 2,
+      "foot": 6,
+      "gap": 2,
+      "arm": 6
+    },
+    {
+      "facing": "north",
+      "frame": 3,
+      "foot": 4,
+      "gap": 6,
+      "arm": 4
+    },
+    {
+      "facing": "north",
+      "frame": 4,
+      "foot": 5,
+      "gap": 2,
+      "arm": 4
+    },
+    {
+      "facing": "north",
+      "frame": 5,
+      "foot": 6,
+      "gap": 2,
+      "arm": 6
+    },
+    {
+      "facing": "east",
+      "frame": 0,
+      "foot": 4,
+      "gap": 5,
+      "arm": 2
+    },
+    {
+      "facing": "east",
+      "frame": 1,
+      "foot": 5,
+      "gap": 1,
+      "arm": 2
+    },
+    {
+      "facing": "east",
+      "frame": 2,
+      "foot": 6,
+      "gap": 1,
+      "arm": 3
+    },
+    {
+      "facing": "east",
+      "frame": 3,
+      "foot": 4,
+      "gap": 5,
+      "arm": 2
+    },
+    {
+      "facing": "east",
+      "frame": 4,
+      "foot": 5,
+      "gap": 1,
+      "arm": 2
+    },
+    {
+      "facing": "east",
+      "frame": 5,
+      "foot": 6,
+      "gap": 1,
+      "arm": 3
+    },
+    {
+      "facing": "west",
+      "frame": 0,
+      "foot": 4,
+      "gap": 5,
+      "arm": 2
+    },
+    {
+      "facing": "west",
+      "frame": 1,
+      "foot": 5,
+      "gap": 1,
+      "arm": 2
+    },
+    {
+      "facing": "west",
+      "frame": 2,
+      "foot": 6,
+      "gap": 1,
+      "arm": 3
+    },
+    {
+      "facing": "west",
+      "frame": 3,
+      "foot": 4,
+      "gap": 5,
+      "arm": 2
+    },
+    {
+      "facing": "west",
+      "frame": 4,
+      "foot": 5,
+      "gap": 1,
+      "arm": 2
+    },
+    {
+      "facing": "west",
+      "frame": 5,
+      "foot": 6,
+      "gap": 1,
+      "arm": 3
+    }
+  ]
+}

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Consultant } from '../../src/domain/lifecycle';
-import type { LatestOfficeProps } from '../../src/renderer/office/OfficeCanvas';
-import { viewFromLatest } from '../../src/renderer/office/OfficeCanvas';
+import { viewFromLatest, type LatestOfficeProps } from '../../src/renderer/office/view-from-latest';
 
 function consultant(conversationId: string, suffix: string): Consultant {
   return {

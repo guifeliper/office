@@ -1,0 +1,42 @@
+{
+  "1 proporção": {
+    "value": "altura 32 (y24–55), cabeça 15 (0.469), pescoço 2, cabeça 14 × tronco 10",
+    "pass": true
+  },
+  "2 cabelo": {
+    "value": "brilho 17px x18–23 y24–27; claro 17 médio 70 escuro 32 (claro 14%)",
+    "pass": true
+  },
+  "3 rosto": {
+    "value": "olhos x20+21 y33, x26+27 y33; sobrancelhas 2; boca x22–23 y36; gap 4; ink no rosto 2",
+    "pass": true
+  },
+  "4 braço e mão": {
+    "value": "mão x16–18 y45–47 fora 3px manga-escura true | mão x29–31 y45–47 fora 3px manga-escura true; largura na mão 16 × abaixo 10",
+    "pass": true
+  },
+  "5 dobras": {
+    "value": "shirt 3 clusters [5px w3, 5px w3, 23px w10] fitas1px 0 | pants 2 clusters [6px w2, 6px w2] fitas1px 0",
+    "pass": true
+  },
+  "6 hue shift": {
+    "value": "skin Δ(B−R) +46, L 213>177>142 | shirt Δ(B−R) +36, L 116>79>47 | pants Δ(B−R) +46, L 218>178>121 | hair Δ(B−R) +92, L 160>80>52",
+    "pass": true
+  },
+  "7 sel-out": {
+    "value": "ink 2 px; aresta norte sem ink 24 px; borda sul/lateral no tom escuro 58/76",
+    "pass": true
+  },
+  "8 sombra de contato": {
+    "value": "grama 24/24, caminho 24/24, fileira 56 do PNG 0 px, sombra com cor de sapato/ink false",
+    "pass": true
+  },
+  "9 leitura a 1×": {
+    "value": "itens 1–8 verdadeiros; leitura a olho nos compostos 1×: cabeça, olhos, mãos, pés separados e chão apontáveis",
+    "pass": true
+  },
+  "10 original e limpo": {
+    "value": "16 cores, alpha sujo 0, hex iguais à referência 0, IoU piloto 0.507, camisa roxo-índigo + calça cáqui",
+    "pass": true
+  }
+}
