@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monitorFrame, monitorPhase } from '../../src/renderer/office/monitor-phase';
+import { monitorFrame, monitorPhase, monitorTexture } from '../../src/renderer/office/monitor-phase';
 
 describe('monitor phase', () => {
   it('maps desk state to the four sheet frames', () => {
@@ -18,5 +18,13 @@ describe('monitor phase', () => {
     expect(monitorPhase({ mode: 'hold', bootMs: 0, leaveMs: 0, atDesk: false })).toBe('off');
     expect(monitorPhase({ mode: 'leisure', bootMs: 0, leaveMs: 0, atDesk: false })).toBe('off');
     expect(monitorPhase({ mode: 'toLeisure', bootMs: 0, leaveMs: 0, atDesk: true })).toBe('off');
+  });
+
+  it('blinks a booting screen and holds the other phases', () => {
+    expect(monitorTexture('off', true)).toBe('off');
+    expect(monitorTexture('working', false)).toBe('working');
+    expect(monitorTexture('standby', true)).toBe('standby');
+    expect(monitorTexture('booting', true)).toBe('working');
+    expect(monitorTexture('booting', false)).toBe('off');
   });
 });

@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createImage, readPng, stats, writePng, type Rgba } from './png';
+import { monitorScreens } from './monitor-screen';
 import { CACHE, packRoot } from './pack-paths';
 
 const PACK = packRoot();
@@ -104,7 +105,11 @@ const chairs = sheet('Objects/Interior/Chairs.png', 304, 224);
 write(CABIN, 'chair-north', crop(chairs, 144, 0, 16, 32));
 
 const computers = sheet('Objects/Interior/Part 2 copiar.png', 256, 144);
-write(CABIN, 'computer', crop(computers, 64, 64, 32, 32));
+const computer = crop(computers, 64, 64, 32, 32);
+write(CABIN, 'computer', computer);
+const screens = monitorScreens(computer);
+write(CABIN, 'computer-working', screens.working);
+write(CABIN, 'computer-standby', screens.standby);
 
 const part1 = sheet('Objects/Interior/Part 1 copiar.png', 272, 192);
 write(CABIN, 'plant', crop(part1, 112, 144, 16, 32));
