@@ -5,6 +5,7 @@ import {
   CABIN_FLAME_URLS,
   CABIN_FLOOR_URL,
   CABIN_PROP_URL,
+  COMPUTER_SCREEN_URL,
   CABIN_WALL_URLS,
   CAMPFIRE_FRAME_URL,
   BUTTERFLY_FRAME_URL,
@@ -27,6 +28,7 @@ import { ErrandBoard } from './errand-board';
 import { claimBeds, gardenAction, initialGarden, stepGarden, type GardenState } from './garden-cycle';
 import { fishFrame, initialFish, stepFish, type FishState } from './fish-cycle';
 import { lilyFrame, lilyOffsetY } from './lily-motion';
+import { combinePhases, monitorTexture, type MonitorPhase } from './monitor-phase';
 import {
   CABIN_COLS,
   CABIN_PROPS,
@@ -103,6 +105,9 @@ export class OfficeScene {
   private flameFrames: Texture[] = [];
   private flameSprites: Sprite[] = [];
   private flameMs = 0;
+  private computerSprites: Sprite[] = [];
+  private screenTextures: Partial<Record<'off' | 'working' | 'standby', Texture>> = {};
+  private screenMs = 0;
   private view: OfficeViewModel | null = null;
   private reducedMotion = false;
   private destroyed = false;
@@ -247,13 +252,15 @@ export class OfficeScene {
 
   private async buildCabin(): Promise<void> {
     const layer = this.layers.cabin;
-    const [floor, walls, flames, props] = await Promise.all([
+    const [floor, walls, flames, props, screens] = await Promise.all([
       loadNearest(CABIN_FLOOR_URL),
       Promise.all(CABIN_WALL_URLS.map((url) => loadNearest(url))),
       Promise.all(CABIN_FLAME_URLS.map((url) => loadNearest(url))),
       Promise.all((Object.keys(CABIN_PROP_URL) as CabinPropKind[]).map(async (kind) => [kind, await loadNearest(CABIN_PROP_URL[kind])] as const)),
+      Promise.all((Object.keys(COMPUTER_SCREEN_URL) as (keyof typeof COMPUTER_SCREEN_URL)[]).map(async (key) => [key, await loadNearest(COMPUTER_SCREEN_URL[key])] as const)),
     ]);
     const textures = Object.fromEntries(props) as Record<CabinPropKind, Texture>;
+    this.screenTextures = Object.fromEntries(screens);
 
     const ground = new Container();
     ground.zIndex = GROUND_DEPTH;
@@ -270,6 +277,7 @@ export class OfficeScene {
       const sprite = anchored(textures[placement.kind], anchor);
       sprite.label = placement.kind;
       layer.actors.addChild(sprite);
+      if (placement.kind === 'computer') this.computerSprites.push(sprite);
       if (placement.kind === 'fireplace') {
         const flame = anchored(flames[0]!, flameAnchor(placement));
         this.flameSprites.push(flame);
@@ -453,6 +461,7 @@ export class OfficeScene {
     this.stepGarden(deltaMs);
     this.stepFishing(deltaMs);
     this.applySnapshots(snaps, deltaMs);
+    this.paintMonitors(deltaMs);
     if (!this.reducedMotion && this.campfireFrames.length > 1) {
       this.campfireMs += deltaMs;
       const frame = this.campfireFrames[Math.floor(this.campfireMs / 180) % 4];
@@ -464,6 +473,22 @@ export class OfficeScene {
       const frame = this.flameFrames[Math.floor(this.flameMs / FLAME_MS) % this.flameFrames.length];
       if (frame) for (const sprite of this.flameSprites) sprite.texture = frame;
     }
+  }
+
+  /** The desk screen follows the consultant sitting there. An empty desk stays off. */
+  private paintMonitors(deltaMs: number): void {
+    if (!this.reducedMotion) this.screenMs += deltaMs;
+    const phaseByDesk = new Map<number, MonitorPhase>();
+    for (const snap of this.lastSnaps.values()) {
+      if (snap.deskIndex < 0) continue;
+      const previous = phaseByDesk.get(snap.deskIndex);
+      phaseByDesk.set(snap.deskIndex, previous ? combinePhases([previous, snap.monitor]) : snap.monitor);
+    }
+    const blinkOn = this.reducedMotion || Math.floor(this.screenMs / 180) % 2 === 1;
+    this.computerSprites.forEach((sprite, index) => {
+      const texture = this.screenTextures[monitorTexture(phaseByDesk.get(index) ?? 'off', blinkOn)];
+      if (texture) sprite.texture = texture;
+    });
   }
 
   /** Each body is drawn once, in the scene its zone says. Off-stage scenes still move. */

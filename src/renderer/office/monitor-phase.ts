@@ -38,6 +38,16 @@ export function monitorFrame(input: MonitorInput): 0 | 1 | 2 | 3 {
   return MONITOR_FRAME[monitorPhase(input)];
 }
 
+export type ScreenTexture = 'off' | 'working' | 'standby';
+
+/** Which cached crop to draw. Booting blinks between off and working. */
+export function monitorTexture(phase: MonitorPhase, blinkOn: boolean): ScreenTexture {
+  if (phase === 'working') return 'working';
+  if (phase === 'standby') return 'standby';
+  if (phase === 'booting') return blinkOn ? 'working' : 'off';
+  return 'off';
+}
+
 /** Highest phase wins when two consultants share a desk. */
 const PHASE_RANK: Record<MonitorPhase, number> = {
   off: 0,

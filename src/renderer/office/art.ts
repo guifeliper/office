@@ -62,6 +62,13 @@ export const BUSH_VARIANTS = [yard('bush-a.png'), yard('bush-b.png')] as const;
 /** Cabana Norte: Tiny Farm crops only, cut by `scripts/cut-cabin.ts` into the cache. */
 const cabin = (file: string) => new URL(`../../../.cache/tiny-farm/cabin/${file}`, import.meta.url).href;
 
+/** Off is the pack crop. Working and standby recolor only its glass with the keyboard blues. */
+export const COMPUTER_SCREEN_URL = {
+  off: cabin('computer.png'),
+  working: cabin('computer-working.png'),
+  standby: cabin('computer-standby.png'),
+} as const;
+
 export const CABIN_PROP_URL: Record<CabinPropKind, string> = {
   desk: cabin('desk.png'),
   computer: cabin('computer.png'),
